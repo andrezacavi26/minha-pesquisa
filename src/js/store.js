@@ -16,6 +16,8 @@ export const COLLECTIONS = [
   'congresses',
   'papers', // produção / artigos
   'links', // modelos, templates, artigos e links
+  'assessments', // provas, trabalhos e apresentações de cada disciplina
+  'drawings', // desenhos experimentais
 ];
 
 function empty() {
@@ -40,13 +42,13 @@ function load() {
   }
 }
 
-function persist() {
+function persist(silent = false) {
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
   } catch (e) {
     console.warn('Não foi possível salvar', e);
   }
-  listeners.forEach((fn) => fn(state));
+  if (!silent) listeners.forEach((fn) => fn(state));
 }
 
 export const uid = () =>
@@ -70,8 +72,13 @@ export const store = {
     persist();
     return item;
   },
-  update(col, id, patch) {
+  // silent: salva sem redesenhar a tela (usado pelo editor de desenhos)
+  update(col, id, patch, { silent = false } = {}) {
     state[col] = state[col].map((x) => (x.id === id ? { ...x, ...patch } : x));
+    persist(silent);
+  },
+  removeWhere(col, fn) {
+    state[col] = state[col].filter((x) => !fn(x));
     persist();
   },
   remove(col, id) {

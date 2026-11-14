@@ -1,7 +1,7 @@
 // Cálculos derivados: progresso, ritmo, créditos e agenda unificada.
 import { store } from './store.js';
 import { daysUntil, todayISO } from './ui.js';
-import { STAGES } from './schemas.js';
+import { STAGES, kindLabel } from './schemas.js';
 
 const STATUS_WEIGHT = { todo: 0, doing: 0.5, done: 1 };
 
@@ -88,6 +88,11 @@ export function agenda({ includeDone = false } = {}) {
     if (t.due && (includeDone || !t.done))
       out.push({ date: t.due, title: t.title, kind: 'Tarefa', col: 'tasks', id: t.id, done: !!t.done, sub: exps[t.experimentId]?.title || t.origin || '' });
   });
+  const courses = Object.fromEntries(store.list('courses').map((c) => [c.id, c]));
+  store.list('assessments').forEach((a) => {
+    if (a.date && (includeDone || !a.done))
+      out.push({ date: a.date, title: `${kindLabel(a.kind)}: ${a.title}`, kind: 'Disciplina', col: 'assessments', id: a.id, done: !!a.done, sub: courses[a.courseId]?.name || '' });
+  });
   store.list('milestones').forEach((m) => {
     if (includeDone || !m.done)
       out.push({ date: m.date, title: m.title, kind: 'Prazo', col: 'milestones', id: m.id, done: !!m.done, sub: m.notes || '' });
@@ -125,4 +130,23 @@ export function lastMeeting() {
     .list('meetings')
     .filter((m) => m.date < t)
     .sort((a, b) => b.date.localeCompare(a.date))[0];
+}
+
+// Resumo de uma disciplina: atividades, média ponderada e próxima entrega.
+export function courseStats(courseId) {
+  const list = store.list('assessments').filter((a) => a.courseId === courseId);
+  const graded = list.filter((a) => a.grade !== '' && a.grade !== undefined && a.grade !== null && !isNaN(Number(a.grade)));
+  let avg = null;
+  if (graded.length) {
+    const wsum = graded.reduce((s, a) => s + (Number(a.weight) || 0), 0);
+    avg = wsum
+      ? graded.reduce((s, a) => s + Number(a.grade) * (Number(a.weight) || 0), 0) / wsum
+      : graded.reduce((s, a) => s + Number(a.grade), 0) / graded.length;
+  }
+  const t = todayISO();
+  const next = list
+    .filter((a) => !a.done && a.date && a.date >= t)
+    .sort((a, b) => a.date.localeCompare(b.date))[0];
+  const late = list.filter((a) => !a.done && a.date && a.date < t).length;
+  return { list, total: list.length, done: list.filter((a) => a.done).length, graded: graded.length, avg, next, late };
 }

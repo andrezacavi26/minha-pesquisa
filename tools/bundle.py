@@ -1,7 +1,7 @@
 import re, sys, os
 root = sys.argv[1]; out = sys.argv[2]
-order = ['js/store.js','js/ui.js','js/schemas.js','js/metrics.js','js/seed.js',
- 'js/views/home.js','js/views/planning.js','js/views/advisor.js','js/views/timeline.js',
+order = ['js/store.js','js/ui.js','js/schemas.js','js/metrics.js','js/views/drawing.js','js/seed.js',
+ 'js/views/home.js','js/views/course.js','js/views/planning.js','js/views/advisor.js','js/views/timeline.js',
  'js/views/academic.js','js/views/archive.js','js/views/settings.js','js/app.js']
 def mod(path): return '__m_' + re.sub(r'\W','_', os.path.splitext(path)[0].replace('js/',''))
 def resolve(frm, spec): return os.path.normpath(os.path.join(os.path.dirname(frm), spec)).replace('\\','/')

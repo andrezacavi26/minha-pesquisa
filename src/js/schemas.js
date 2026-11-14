@@ -14,6 +14,14 @@ export const PAPER_STATUS = [
   ['publicado', 'Publicado'],
 ];
 
+export const ASSESSMENT_KINDS = [
+  ['prova', 'Prova'],
+  ['trabalho', 'Trabalho'],
+  ['apresentacao', 'Apresentação / seminário'],
+  ['outro', 'Outra atividade'],
+];
+export const kindLabel = (k) => ({ prova: 'Prova', trabalho: 'Trabalho', apresentacao: 'Apresentação', outro: 'Atividade' })[k] || 'Atividade';
+
 export const LEVELS = [
   ['graduacao', 'Graduação (IC / TCC)'],
   ['mestrado', 'Mestrado'],
@@ -143,12 +151,29 @@ export const SCHEMAS = {
         type: 'select',
         options: [
           ['cursando', 'Cursando'],
+          ['planejada', 'Vou cursar'],
           ['concluida', 'Concluída'],
-          ['planejada', 'Planejada'],
         ],
       },
-      { name: 'grade', label: 'Conceito / nota', placeholder: 'A' },
-      { name: 'url', label: 'Link da ementa', type: 'url' },
+      { name: 'grade', label: 'Conceito / nota final', placeholder: 'A' },
+      { name: 'professor', label: 'Professor(a)' },
+      { name: 'schedule', label: 'Dia e horário', placeholder: 'Ex.: Terças, 14h–17h' },
+      { name: 'room', label: 'Sala / local', placeholder: 'Ex.: Sala 204, bloco B' },
+      { name: 'url', label: 'Link da ementa', type: 'url', full: true },
+    ],
+  },
+  assessments: {
+    label: 'atividade',
+    fields: () => [
+      { name: 'kind', label: 'Tipo', type: 'select', options: ASSESSMENT_KINDS },
+      { name: 'courseId', label: 'Disciplina', type: 'select', options: store.list('courses').map((c) => [c.id, c.name]), required: true },
+      { name: 'title', label: 'Título', required: true, full: true, placeholder: 'Ex.: Prova 1, Seminário sobre barreira intestinal' },
+      { name: 'date', label: 'Data de entrega / realização', type: 'date' },
+      { name: 'weight', label: 'Peso (%)', type: 'number', placeholder: 'Ex.: 30' },
+      { name: 'grade', label: 'Nota (0 a 10)', type: 'number', placeholder: 'Ex.: 8,5' },
+      { name: 'description', label: 'O que pedir / conteúdo', type: 'textarea', rows: 3 },
+      { name: 'url', label: 'Link (enunciado, arquivo, slides)', type: 'url', full: true },
+      { name: 'done', label: 'Concluída / entregue', type: 'checkbox', full: true },
     ],
   },
   certificates: {

@@ -55,7 +55,7 @@ export function render(params) {
 const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
 function row(a) {
-  const canToggle = a.col === 'tasks' || a.col === 'milestones';
+  const canToggle = a.col === 'tasks' || a.col === 'milestones' || a.col === 'assessments';
   return `<li class="row agenda-row u-${urgency(a.date, a.done)} ${a.done ? 'is-done' : ''}">
     <div class="date-chip small"><b>${fmtDate(a.date, { day: '2-digit' })}</b><span>${fmtDate(a.date, { month: 'short' })}</span></div>
     <div class="row-main"><strong>${esc(a.title)}</strong><small class="muted"><span class="tag">${esc(a.kind)}</span> ${esc(a.sub || '')}</small></div>

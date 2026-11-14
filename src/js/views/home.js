@@ -62,6 +62,8 @@ function todayList() {
       ${
         a.col === 'tasks'
           ? `<button class="checkbox" data-action="toggle-task" data-id="${a.id}" aria-label="Marcar como feita"></button>`
+          : a.col === 'assessments'
+          ? `<button class="checkbox" data-action="toggle-done" data-col="assessments" data-id="${a.id}" aria-label="Marcar como concluída"></button>`
           : `<span class="kind-dot" title="${esc(a.kind)}"></span>`
       }
       <div class="ti-body">
@@ -152,7 +154,7 @@ export function render() {
       </section>
 
       <section class="col">
-        <header class="col-head"><h2>Planejamento experimental</h2><a href="#/planejamento" class="mini-link">Abrir ${icon('arrow')}</a></header>
+        <header class="col-head"><h2>Planejamento experimental</h2><a href="#/planejamento?aba=experimental" class="mini-link">Abrir ${icon('arrow')}</a></header>
         ${
           exps.length
             ? `<ol class="exp-rail">${exps

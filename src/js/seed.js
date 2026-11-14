@@ -1,5 +1,6 @@
 // Dados de exemplo (datas relativas a hoje, para a demonstração sempre parecer atual).
 import { uid } from './store.js';
+import { templateGroups } from './views/drawing.js';
 
 function d(offsetDays) {
   const x = new Date();
@@ -9,7 +10,7 @@ function d(offsetDays) {
 }
 
 export function demoData() {
-  const e1 = uid(), e2 = uid(), e3 = uid(), ceua = uid();
+  const e1 = uid(), e2 = uid(), e3 = uid(), ceua = uid(), cImu = uid(), cHist = uid();
   const now = new Date().toISOString();
   const S = (o) => ({ id: uid(), createdAt: now, ...o });
   return {
@@ -82,7 +83,8 @@ export function demoData() {
       S({ name: 'Metodologia da Pesquisa', type: 'obrigatoria', credits: 4, term: '2025/1', status: 'concluida', grade: 'A', url: '' }),
       S({ name: 'Patologia Experimental', type: 'obrigatoria', credits: 6, term: '2025/2', status: 'concluida', grade: 'B', url: '' }),
       S({ name: 'Tópicos em Neuroimunologia', type: 'optativa', credits: 4, term: '2025/2', status: 'concluida', grade: 'A', url: '' }),
-      S({ name: 'Imunologia das Mucosas', type: 'optativa', credits: 4, term: '2026/2', status: 'cursando', grade: '', url: '' }),
+      { id: cImu, createdAt: now, name: 'Imunologia das Mucosas', type: 'optativa', credits: 4, term: '2026/2', status: 'cursando', grade: '', url: '', professor: 'Prof. Dr. Ricardo Lima', schedule: 'Quartas, 14h–17h', room: 'Sala 112, ICB' },
+      { id: cHist, createdAt: now, name: 'Histopatologia Avançada', type: 'obrigatoria', credits: 6, term: '2027/1', status: 'planejada', grade: '', url: '', professor: '', schedule: '', room: '' },
     ],
     certificates: [
       S({ title: 'Apresentação de pôster na Reunião Anual da FeSBE', kind: 'apresentacao', date: d(-150), hours: 20, url: '' }),
@@ -94,6 +96,15 @@ export function demoData() {
     papers: [
       S({ title: 'Eixo HPA e permeabilidade intestinal: revisão sistemática', journal: 'Neurogastroenterology & Motility', status: 'escrita', authors: 'Silva M, Costa H', year: 2026, doi: '', qualis: 'A1' }),
       S({ title: 'Probióticos e junções firmes em modelo de estresse', journal: '', status: 'ideia', authors: 'Silva M, Costa H', year: '', doi: '', qualis: '' }),
+    ],
+    assessments: [
+      S({ courseId: cImu, kind: 'prova', title: 'Prova 1: imunidade inata da mucosa', date: d(-14), weight: 30, grade: 8.5, description: 'Capítulos 1 a 4', url: '', done: true }),
+      S({ courseId: cImu, kind: 'apresentacao', title: 'Seminário: junções firmes e microbiota', date: d(4), weight: 30, grade: '', description: 'Apresentação de 20 min em dupla, com artigo de 2024 ou mais recente', url: '', done: false }),
+      S({ courseId: cImu, kind: 'trabalho', title: 'Revisão crítica de artigo', date: d(19), weight: 20, grade: '', description: 'Até 5 páginas', url: '', done: false }),
+      S({ courseId: cImu, kind: 'prova', title: 'Prova 2', date: d(33), weight: 20, grade: '', description: '', url: '', done: false }),
+    ],
+    drawings: [
+      { id: uid(), createdAt: now, title: 'Grupos do experimento de barreira', experimentId: e1, shapes: templateGroups(), grid: true, updatedAt: now },
     ],
     links: [
       S({ title: 'Modelo de relatório anual do programa', category: 'modelo', url: '', notes: '' }),

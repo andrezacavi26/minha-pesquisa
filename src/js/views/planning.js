@@ -2,10 +2,61 @@ import { store } from '../store.js';
 import { esc, icon, fmtDate, badge, progressBar, rowActions, emptyState, daysUntil } from '../ui.js';
 import { stagesOf, experimentProgress } from '../metrics.js';
 import { STAGE_STATUS } from '../schemas.js';
+import * as drawing from './drawing.js';
+import * as course from './course.js';
 
 export const title = 'Planejamento';
 
 export function render(params) {
+  if (params.get('desenho')) return drawing.render(params);
+  const aba = params.get('aba') === 'academico' ? 'academico' : 'experimental';
+  return `<div class="page">
+    <header class="page-head">
+      <div><p class="eyebrow dark">Planejamento</p><h1>${aba === 'academico' ? 'Planejamento acadêmico' : 'Planejamento experimental'}</h1></div>
+    </header>
+    <nav class="subtabs" aria-label="Tipo de planejamento">
+      <a href="#/planejamento?aba=experimental" class="subtab ${aba === 'experimental' ? 'active' : ''}">${icon('flask')} Planejamento experimental</a>
+      <a href="#/planejamento?aba=academico" class="subtab ${aba === 'academico' ? 'active' : ''}">${icon('book')} Planejamento acadêmico</a>
+    </nav>
+    ${aba === 'academico' ? (params.get('disc') ? course.renderCourse(params) : course.renderList()) : experimental(params)}
+  </div>`;
+}
+
+export function mount(params) {
+  if (params.get('desenho')) return drawing.mount(params);
+  return null;
+}
+
+const localISO = (iso) => {
+  const d = new Date(iso);
+  const p = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
+
+function drawingsSection(s, expName) {
+  const list = [...s.drawings].sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''));
+  return `<section class="section">
+    <header class="section-head">
+      <h2>${icon('edit')} Desenhos experimentais</h2>
+      <button class="btn btn-soft" data-action="new-drawing">${icon('plus')} Novo desenho</button>
+    </header>
+    ${
+      list.length
+        ? `<div class="drawing-grid">${list
+            .map(
+              (d) => `<a class="card drawing-card" href="#/planejamento?aba=experimental&desenho=${d.id}">
+          <div class="thumb">${drawing.thumbnail(d.shapes)}</div>
+          <strong>${esc(d.title)}</strong>
+          <small class="muted">${[expName[d.experimentId], d.updatedAt ? 'editado ' + fmtDate(localISO(d.updatedAt)) : ''].filter(Boolean).map(esc).join(' · ')}</small>
+        </a>`
+            )
+            .join('')}</div>`
+        : emptyState('Monte o desenho do seu experimento com formas, setas e texto, como no PowerPoint. Há modelos prontos de linha do tempo e de grupos.', 'new-drawing', 'Criar primeiro desenho')
+    }
+  </section>`;
+}
+
+function experimental(params) {
   const s = store.get();
   const filter = params.get('exp') || '';
   const expName = Object.fromEntries(s.experiments.map((e) => [e.id, e.title]));
@@ -13,12 +64,10 @@ export function render(params) {
     .filter((l) => !filter || l.experimentId === filter)
     .sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
-  return `<div class="page">
-    <header class="page-head">
-      <div><p class="eyebrow dark">Planejamento experimental</p><h1>Experimentos e bancada</h1></div>
+  return `<div class="section-head">
+      <h2>${icon('flask')} Experimentos</h2>
       <button class="btn btn-primary" data-action="add" data-col="experiments">${icon('plus')} Novo experimento</button>
-    </header>
-
+    </div>
     <section class="section">
       ${
         s.experiments.length
@@ -26,6 +75,8 @@ export function render(params) {
           : emptyState('Cadastre um experimento para acompanhar Desenho → Coleta → Análise → Escrita.', 'add-experiments', 'Novo experimento')
       }
     </section>
+
+    ${drawingsSection(s, expName)}
 
     <div class="grid-2">
       <section class="section">
@@ -103,8 +154,7 @@ export function render(params) {
           }
         </section>
       </div>
-    </div>
-  </div>`;
+    </div>`;
 }
 
 function expCard(e, s) {
@@ -112,6 +162,7 @@ function expCard(e, s) {
   const ethics = s.ethics.find((x) => x.id === e.ethicsId);
   const logs = s.logs.filter((l) => l.experimentId === e.id).length;
   const tasks = s.tasks.filter((t) => t.experimentId === e.id && !t.done).length;
+  const drawings = s.drawings.filter((d) => d.experimentId === e.id);
   return `<article class="card exp-card">
     <header class="exp-head">
       <span class="tile-ico">${icon('flask')}</span>
@@ -131,8 +182,13 @@ function expCard(e, s) {
     <footer class="exp-foot">
       ${e.groups ? `<span>${esc(e.groups)}${e.n ? ` · n=${esc(e.n)}` : ''}</span>` : ''}
       ${ethics ? `<span>${icon('shield')} ${esc(ethics.kind)} ${esc(ethics.number)}</span>` : ''}
-      <a href="#/planejamento?exp=${e.id}">${icon('note')} ${logs} registros</a>
+      <a href="#/planejamento?aba=experimental&exp=${e.id}">${icon('note')} ${logs} registros</a>
       <span>${icon('check')} ${tasks} tarefas</span>
+      ${
+        drawings.length
+          ? `<a href="#/planejamento?aba=experimental&desenho=${drawings[0].id}">${icon('edit')} ${drawings.length} desenho(s)</a>`
+          : `<button class="link-btn dark" data-action="new-drawing" data-exp="${e.id}">${icon('edit')} desenhar</button>`
+      }
       <button class="link-btn dark" data-action="add-log-for" data-id="${e.id}">${icon('plus')} registro</button>
     </footer>
   </article>`;

@@ -1,4 +1,4 @@
-import { store } from './store.js';
+import { store, uid } from './store.js';
 import { esc, icon, openForm, confirmDialog, toast, closeModal, todayISO } from './ui.js';
 import { SCHEMAS, PROFILE_FIELDS, STAGES, PAPER_STATUS, defaultDuration } from './schemas.js';
 import { demoData } from './seed.js';
@@ -78,7 +78,16 @@ function welcome() {
 }
 
 let lastRoute = '';
+let cleanup = null;
 function render() {
+  if (cleanup) {
+    try {
+      cleanup();
+    } catch (e) {
+      console.warn(e);
+    }
+    cleanup = null;
+  }
   const s = store.get();
   if (!s.profile) {
     app.innerHTML = welcome();
@@ -89,6 +98,7 @@ function render() {
   const route = ROUTES[name];
   const y = window.scrollY;
   app.innerHTML = shell(name, route.view.render(params));
+  if (route.view.mount) cleanup = route.view.mount(params) || null;
   document.title = `${route.view.title || route.label} · Minha Pesquisa`;
   const key = location.hash;
   if (key !== lastRoute) window.scrollTo(0, 0);
@@ -193,11 +203,28 @@ const actions = {
   edit: (el) => addOrEdit(el.dataset.col, el.dataset.id),
   delete: (el) => {
     const { col, id } = el.dataset;
-    confirmDialog(`Excluir este(a) ${SCHEMAS[col].label}?`, () => {
+    const n = col === 'courses' ? store.list('assessments').filter((a) => a.courseId === id).length : 0;
+    const label = SCHEMAS[col]?.label || 'item';
+    confirmDialog(n ? `Excluir esta disciplina e as ${n} atividade(s) dela?` : `Excluir este(a) ${label}?`, () => {
+      if (col === 'courses') {
+        store.removeWhere('assessments', (a) => a.courseId === id);
+        if (location.hash.includes(`disc=${id}`)) location.hash = '#/planejamento?aba=academico';
+      }
       store.remove(col, id);
       toast('Excluído');
     });
   },
+  'new-drawing': (el) => {
+    const d = store.add('drawings', {
+      title: 'Desenho sem título',
+      experimentId: el.dataset.exp || '',
+      shapes: [],
+      grid: true,
+      updatedAt: new Date().toISOString(),
+    });
+    location.hash = `#/planejamento?aba=experimental&desenho=${d.id}`;
+  },
+  'add-assessment': (el) => addOrEdit('assessments', null, { courseId: el.dataset.course, kind: el.dataset.kind }),
   'toggle-task': (el) => {
     const t = store.find('tasks', el.dataset.id);
     if (t) store.update('tasks', t.id, { done: !t.done });
@@ -261,7 +288,7 @@ document.addEventListener('click', (e) => {
 document.addEventListener('change', (e) => {
   const el = e.target;
   if (el.dataset.filter === 'exp') {
-    location.hash = el.value ? `#/planejamento?exp=${el.value}` : '#/planejamento';
+    location.hash = el.value ? `#/planejamento?aba=experimental&exp=${el.value}` : '#/planejamento?aba=experimental';
   }
   if (el.dataset.action === 'import' && el.files?.[0]) {
     const reader = new FileReader();

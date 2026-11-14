@@ -49,7 +49,7 @@ export function render() {
     <section class="section">
       <header class="section-head">
         <h2>${icon('book')} Disciplinas cursadas</h2>
-        <button class="btn btn-soft" data-action="add" data-col="courses">${icon('plus')} Disciplina</button>
+        <div class="head-actions"><a class="mini-link" href="#/planejamento?aba=academico">Provas e trabalhos ${icon('arrow')}</a><button class="btn btn-soft" data-action="add" data-col="courses">${icon('plus')} Disciplina</button></div>
       </header>
       ${creditCards(cr)}
       ${
@@ -59,7 +59,7 @@ export function render() {
           <tbody>${courses
             .map(
               (c) => `<tr>
-              <td>${c.url ? `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.name)}</a>` : esc(c.name)}</td>
+              <td><a href="#/planejamento?aba=academico&disc=${c.id}">${esc(c.name)}</a></td>
               <td><span class="pill type-${courseType(c)}">${courseType(c) === 'optativa' ? 'Optativa' : 'Obrigatória'}</span></td>
               <td>${esc(c.term || '—')}</td><td>${esc(c.credits)}</td>
               <td><span class="pill status-${c.status}">${{ cursando: 'Cursando', concluida: 'Concluída', planejada: 'Planejada' }[c.status] || ''}</span></td>
