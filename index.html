@@ -649,6 +649,86 @@ a.tile:hover, .tile.ghost:hover { border-color: #a6e5cf; }
   .assess-meta { align-items: flex-start; min-width: 0; }
 }
 
+/* ===== Biblioteca de artigos ===== */
+.lib-search { display: grid; grid-template-columns: 1.6fr auto 1fr; gap: 22px; align-items: start; margin-bottom: 26px; }
+.lib-form, .lib-lookup { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.lib-q { display: flex; gap: 8px; align-items: center; border: 1px solid #c9dcd9; border-radius: 12px; padding: 4px 4px 4px 12px; background: #fbfdfd; }
+.lib-q:focus-within { border-color: var(--mint-2); box-shadow: 0 0 0 3px rgba(62,232,181,.25); background: #fff; }
+.lib-q > .ico { color: var(--muted); }
+.lib-q input { flex: 1; min-width: 0; border: 0; background: transparent; font: inherit; font-size: 16px; padding: 8px 0; outline: none; color: var(--ink); }
+.lib-q .btn { padding: 9px 16px; }
+.lib-opts { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.seg { display: inline-flex; background: #e6efee; border-radius: 10px; padding: 3px; }
+.seg label { padding: 6px 12px; border-radius: 8px; font-size: 14px; font-weight: 600; color: var(--ink-2); cursor: pointer; }
+.seg label.on { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(10,42,44,.12); }
+.seg input { position: absolute; opacity: 0; pointer-events: none; }
+.opt { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; font-weight: 600; color: var(--ink-2); }
+.opt select, .opt input { font: inherit; font-size: 14px; padding: 6px 8px; border: 1px solid #c9dcd9; border-radius: 8px; background: #fff; }
+.opt input { width: 84px; }
+.lib-tip { font-size: 13px; color: var(--muted); }
+.lib-or { align-self: stretch; display: flex; flex-direction: column; align-items: center; gap: 6px; color: var(--muted); font-size: 13px; }
+.lib-or::before, .lib-or::after { content: ''; flex: 1; width: 1px; background: var(--line); }
+.lib-lookup label { font-weight: 700; font-size: 15px; }
+.lib-lookup .link-inline { align-self: flex-start; font-size: 14px; }
+.lib-err { color: var(--late); font-size: 14px; }
+.lib-err.box { background: var(--late-soft); border: 1px solid #f6c6c9; padding: 12px 14px; border-radius: 12px; margin-bottom: 20px; }
+.lib-loading { display: flex; align-items: center; gap: 8px; color: var(--muted); padding: 18px; margin-bottom: 18px; }
+.lib-results .section-head h2 { margin-right: auto; }
+.center { display: flex; justify-content: center; margin-top: 14px; }
+.art-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+.art { display: flex; gap: 16px; align-items: flex-start; background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+.art.is-saved { background: #f7fefb; border-color: #c9efe0; }
+.art-main { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.art-top { display: flex; gap: 8px; align-items: flex-start; }
+.art-title { font-weight: 600; line-height: 1.35; }
+.art .chips { margin-top: 6px; }
+.art-links { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 13.5px; margin-top: 2px; }
+.art-links a { color: var(--mint-ink); font-weight: 500; }
+.art-abs { background: #f6faf9; border-radius: 10px; padding: 10px 12px; font-size: 14.5px; margin: 6px 0; }
+.art-actions { display: flex; flex-direction: column; gap: 6px; align-items: stretch; flex: none; width: 150px; }
+.btn.sm { padding: 7px 10px; font-size: 13.5px; border-radius: 9px; }
+.saved-tag { display: inline-flex; align-items: center; gap: 4px; justify-content: center; font-size: 13px; font-weight: 600; color: var(--mint-ink); padding: 7px 0; }
+.saved-tag .ico { width: 15px; height: 15px; }
+.src { flex: none; font-size: 11.5px; font-weight: 700; padding: 2px 7px; border-radius: 6px; margin-top: 2px; letter-spacing: .02em; }
+.src-pubmed { background: #e4edf7; color: #2d4f7a; }
+.src-scielo { background: #fff3dc; color: #8a5a06; }
+.src-crossref, .src-manual { background: #eef4f3; color: var(--ink-2); }
+.star { color: #e7a33a; font-size: 18px; line-height: 1; }
+.rs-ler { background: #eef4f3; }
+.rs-lendo { background: var(--soon-soft); color: #8a5a06; }
+.rs-lido { background: var(--mint-soft); color: #0b5a45; }
+.tag-pill { background: #f1e9fb; color: #5f3c8c; }
+.art-notes { margin-top: 8px; padding: 10px 12px; background: #fffdf4; border: 1px solid #f3e6c0; border-radius: 10px; font-size: 14px; }
+.art-notes h4 { font-size: 11.5px; text-transform: uppercase; letter-spacing: .06em; color: #8a5a06; margin-bottom: 4px; }
+.clamp3 { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.art-abs-d { margin-top: 8px; font-size: 14.5px; }
+.art-abs-d summary { cursor: pointer; color: var(--mint-ink); font-weight: 600; font-size: 14px; }
+.art-abs-d[open] summary { margin-bottom: 8px; }
+.refbox { display: grid; grid-template-columns: 90px 1fr auto; gap: 10px; align-items: center; background: #f6faf9; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; margin-top: 8px; font-size: 13.5px; }
+.refbox > span { font-weight: 700; font-size: 12px; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); }
+.lib-chips { margin: 0 0 14px; }
+.chip { display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; border-radius: 999px; background: #fff; border: 1px solid var(--line); text-decoration: none; color: var(--ink-2); font-size: 14px; font-weight: 600; }
+.chip b { font-weight: 600; color: var(--muted); font-size: 12.5px; }
+.chip.on { background: var(--deep); color: #fff; border-color: var(--deep); }
+.chip.on b { color: var(--mint); }
+.chip .ico { width: 15px; height: 15px; }
+.lib-filter { max-width: 280px; flex: 1; }
+.linked-arts { margin-top: 26px; }
+@media (max-width: 1000px) {
+  .lib-search { grid-template-columns: 1fr; }
+  .lib-or { flex-direction: row; }
+  .lib-or::before, .lib-or::after { width: auto; height: 1px; }
+}
+@media (max-width: 640px) {
+  .art { flex-direction: column; }
+  .art-actions { width: 100%; flex-direction: row; flex-wrap: wrap; }
+  .refbox { grid-template-columns: 1fr; }
+}
+
+.key-form { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.key-form input { flex: 1; min-width: 200px; font: inherit; padding: 9px 12px; border: 1px solid #c9dcd9; border-radius: 10px; }
+.setting > div { flex: 1; }
+
 </style>
   </head>
   <body>
@@ -677,6 +757,7 @@ const COLLECTIONS = [
   'links', // modelos, templates, artigos e links
   'assessments', // provas, trabalhos e apresentações de cada disciplina
   'drawings', // desenhos experimentais
+  'articles', // biblioteca de artigos (PubMed, SciELO, manual)
 ];
 
 function empty() {
@@ -878,6 +959,7 @@ function progressBar(pct, cls = '') {
 
 // ---------- Toast ----------
 function toast(msg) {
+  document.querySelectorAll('.toast').forEach((t) => t.remove());
   const el = document.createElement('div');
   el.className = 'toast';
   el.textContent = msg;
@@ -1165,6 +1247,26 @@ const SCHEMAS = {
       { name: 'schedule', label: 'Dia e horário', placeholder: 'Ex.: Terças, 14h–17h' },
       { name: 'room', label: 'Sala / local', placeholder: 'Ex.: Sala 204, bloco B' },
       { name: 'url', label: 'Link da ementa', type: 'url', full: true },
+    ],
+  },
+  articles: {
+    label: 'artigo',
+    fields: () => [
+      { name: 'title', label: 'Título', required: true, full: true },
+      { name: 'authors', label: 'Autores', full: true, placeholder: 'Sobrenome, Nome; Sobrenome, Nome', hint: 'Separe os autores com ponto e vírgula, no formato Sobrenome, Nome.' },
+      { name: 'journal', label: 'Revista' },
+      { name: 'year', label: 'Ano', type: 'number' },
+      { name: 'volume', label: 'Volume' },
+      { name: 'issue', label: 'Número' },
+      { name: 'pages', label: 'Páginas', placeholder: '120-123' },
+      { name: 'doi', label: 'DOI', placeholder: '10.1590/...' },
+      { name: 'status', label: 'Leitura', type: 'select', options: [['ler', 'Quero ler'], ['lendo', 'Lendo'], ['lido', 'Lido']] },
+      { name: 'cite', label: '★ Quero citar na tese / artigo', type: 'checkbox' },
+      { name: 'experimentId', label: 'Experimento relacionado', type: 'select', options: [['', '— nenhum —'], ...store.list('experiments').map((e) => [e.id, e.title])] },
+      { name: 'courseId', label: 'Disciplina relacionada', type: 'select', options: [['', '— nenhuma —'], ...store.list('courses').map((c) => [c.id, c.name])] },
+      { name: 'tags', label: 'Etiquetas', full: true, placeholder: 'Ex.: junções firmes, revisão, método', hint: 'Separe com vírgulas.' },
+      { name: 'notes', label: 'Fichamento', type: 'textarea', rows: 7, placeholder: 'Objetivo:\nMétodos (modelo, n, protocolo):\nPrincipais resultados:\nLimitações:\nComo uso na minha pesquisa:' },
+      { name: 'abstract', label: 'Resumo', type: 'textarea', rows: 4 },
     ],
   },
   assessments: {
@@ -2383,6 +2485,384 @@ function demoData() {
 return { demoData };
 })();
 
+// ===== js/lit.js =====
+const __m_lit = (() => {
+// Busca de literatura: PubMed (E-utilities da NCBI) e SciELO.
+// SciELO: busca pelo OpenAlex (filtrando DOIs 10.1590, que são os do SciELO), com o Crossref
+// como reserva e como fonte dos dados estruturados (autores, volume, páginas) ao salvar.
+// Todas as APIs aceitam chamadas direto do navegador, sem servidor.
+
+const EUTILS = 'https://eutils.ncbi.nlm.nih.gov/entrez/eutils/';
+const TOOL = '&tool=minhapesquisa';
+const CROSSREF = 'https://api.crossref.org/';
+const OPENALEX = 'https://api.openalex.org/';
+let openalexKey = '';
+const setOpenAlexKey = (k) => (openalexKey = String(k || '').trim());
+const SEL = 'DOI,title,author,container-title,short-container-title,issued,abstract,volume,issue,page,URL,type';
+
+async function get(url, as = 'json') {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), 20000);
+  let r;
+  try {
+    r = await fetch(url, { signal: ctrl.signal });
+  } catch (e) {
+    throw new Error(e.name === 'AbortError' ? 'A base demorou demais para responder. Tente de novo.' : 'Sem conexão com a base. Verifique a internet e tente de novo.');
+  } finally {
+    clearTimeout(timer);
+  }
+  if (r.status === 404) {
+    const err = new Error('Não encontrado');
+    err.notFound = true;
+    throw err;
+  }
+  if (r.status === 429) {
+    const err = new Error('Muitas buscas seguidas. Espere alguns segundos e tente de novo.');
+    err.rateLimited = true;
+    throw err;
+  }
+  if (!r.ok) throw new Error(`A base respondeu com erro (${r.status}). Tente de novo em instantes.`);
+  return as === 'json' ? r.json() : r.text();
+}
+
+// ---------- limpeza de texto ----------
+const decode = (s) => {
+  const t = document.createElement('textarea');
+  t.innerHTML = s;
+  return t.value;
+};
+const clean = (s) =>
+  decode(String(s || '').replace(/<\/?(jats:)?(p|sec)[^>]*>/g, '\n').replace(/<jats:title>[^<]*<\/jats:title>/g, '').replace(/<[^>]+>/g, ''))
+    .replace(/[ \t]+/g, ' ')
+    .replace(/\n\s*\n+/g, '\n\n')
+    .trim();
+
+const MONTHS_EN = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+
+// "Shiroma PR" (formato PubMed) -> "Shiroma, PR"
+function pmName(name) {
+  const parts = String(name).trim().split(/\s+/);
+  if (parts.length < 2) return name;
+  const last = parts[parts.length - 1];
+  if (/^[A-Z]{1,4}$/.test(last)) return `${parts.slice(0, -1).join(' ')}, ${last}`;
+  return name;
+}
+
+// ---------- PubMed ----------
+function fromSummary(s) {
+  const aid = (t) => (s.articleids || []).find((a) => a.idtype === t)?.value || '';
+  const pd = String(s.pubdate || s.epubdate || '');
+  const mon = MONTHS_EN[(pd.split(' ')[1] || '').toLowerCase().slice(0, 3)] || '';
+  return {
+    source: 'pubmed',
+    pmid: String(s.uid),
+    doi: aid('doi'),
+    pmcid: aid('pmc'),
+    title: clean(s.title).replace(/\.$/, ''),
+    authors: (s.authors || []).filter((a) => a.authtype === 'Author').map((a) => pmName(a.name)).join('; '),
+    journal: s.fulljournalname || s.source || '',
+    journalAbbr: s.source || '',
+    year: pd.slice(0, 4),
+    month: mon,
+    volume: s.volume || '',
+    issue: s.issue || '',
+    pages: s.pages || '',
+    abstract: '',
+    url: `https://pubmed.ncbi.nlm.nih.gov/${s.uid}/`,
+  };
+}
+
+async function pubmedSummaries(ids) {
+  if (!ids.length) return [];
+  const r = await get(`${EUTILS}esummary.fcgi?db=pubmed&retmode=json&id=${ids.join(',')}${TOOL}`);
+  return ids.map((id) => r.result?.[id]).filter((x) => x && !x.error).map(fromSummary);
+}
+
+async function pubmedSearch(q, { start = 0, rows = 20, sort = 'relevance', from = '' } = {}) {
+  let url = `${EUTILS}esearch.fcgi?db=pubmed&retmode=json&retmax=${rows}&retstart=${start}&sort=${sort === 'recent' ? 'pub_date' : 'relevance'}&term=${encodeURIComponent(q)}${TOOL}`;
+  if (from) url += `&datetype=pdat&mindate=${from}&maxdate=3000`;
+  const r = await get(url);
+  const ids = r.esearchresult?.idlist || [];
+  return { total: Number(r.esearchresult?.count || 0), items: await pubmedSummaries(ids) };
+}
+
+async function pubmedAbstract(pmid) {
+  const xml = await get(`${EUTILS}efetch.fcgi?db=pubmed&retmode=xml&id=${pmid}${TOOL}`, 'text');
+  const doc = new DOMParser().parseFromString(xml, 'text/xml');
+  const abstract = [...doc.querySelectorAll('Abstract > AbstractText')]
+    .map((a) => (a.getAttribute('Label') ? `${a.getAttribute('Label')}: ` : '') + a.textContent.trim())
+    .join('\n\n');
+  const keywords = [...doc.querySelectorAll('KeywordList > Keyword')].map((k) => k.textContent.trim()).join(', ');
+  return { abstract, keywords };
+}
+
+// ---------- SciELO via Crossref ----------
+function fromCrossref(it) {
+  const dp = it.issued?.['date-parts']?.[0] || [];
+  const doi = it.DOI || '';
+  return {
+    source: doi.toLowerCase().startsWith('10.1590/') ? 'scielo' : 'crossref',
+    pmid: '',
+    doi,
+    pmcid: '',
+    title: clean((it.title || [])[0] || '').replace(/\s+/g, ' '),
+    authors: (it.author || [])
+      .map((a) => (a.family ? `${a.family}${a.given ? ', ' + a.given : ''}` : a.name || ''))
+      .filter(Boolean)
+      .join('; '),
+    journal: clean((it['container-title'] || [])[0] || ''),
+    journalAbbr: clean((it['short-container-title'] || [])[0] || ''),
+    year: dp[0] ? String(dp[0]) : '',
+    month: dp[1] || '',
+    volume: it.volume || '',
+    issue: it.issue || '',
+    pages: it.page || '',
+    abstract: clean(it.abstract || ''),
+    url: doi ? `https://doi.org/${doi}` : it.URL || '',
+  };
+}
+
+// ---------- SciELO via OpenAlex ----------
+function abstractFromIndex(idx) {
+  if (!idx) return '';
+  const words = [];
+  Object.entries(idx).forEach(([w, pos]) => pos.forEach((p) => (words[p] = w)));
+  return words.filter((w) => w !== undefined).join(' ');
+}
+
+const PARTICLES = new Set(['de', 'da', 'do', 'das', 'dos', 'e', 'del', 'della', 'van', 'von', 'y']);
+function splitName(full) {
+  const parts = String(full || '').trim().split(/\s+/);
+  if (parts.length < 2) return full;
+  const family = parts.pop();
+  return `${family}, ${parts.filter((p) => !PARTICLES.has(p.toLowerCase())).join(' ')}`;
+}
+
+function fromOpenAlex(w) {
+  const doi = String(w.doi || '').replace(/^https?:\/\/doi\.org\//i, '');
+  const b = w.biblio || {};
+  const date = String(w.publication_date || '');
+  return {
+    source: 'scielo',
+    pmid: String(w.ids?.pmid || '').replace(/\D/g, ''),
+    doi,
+    pmcid: '',
+    title: clean(w.title || w.display_name || ''),
+    authors: (w.authorships || []).map((a) => splitName(a.author?.display_name)).filter(Boolean).join('; '),
+    journal: w.primary_location?.source?.display_name || '',
+    journalAbbr: '',
+    year: w.publication_year ? String(w.publication_year) : '',
+    month: date.length >= 7 ? Number(date.slice(5, 7)) : '',
+    volume: b.volume || '',
+    issue: b.issue || '',
+    pages: b.first_page ? `${b.first_page}${b.last_page && b.last_page !== b.first_page ? '-' + b.last_page : ''}` : '',
+    abstract: abstractFromIndex(w.abstract_inverted_index),
+    url: doi ? `https://doi.org/${doi}` : '',
+  };
+}
+
+async function scieloOpenAlex(q, { start = 0, rows = 20, sort = 'relevance', from = '' } = {}) {
+  const filter = ['doi_starts_with:10.1590', 'type:article', from ? `from_publication_date:${from}-01-01` : ''].filter(Boolean).join(',');
+  const page = Math.floor(start / rows) + 1;
+  const sel = 'id,ids,doi,title,display_name,publication_year,publication_date,authorships,primary_location,biblio,abstract_inverted_index';
+  const url = `${OPENALEX}works?search=${encodeURIComponent(q)}&filter=${filter}&per_page=${rows}&page=${page}&select=${sel}${
+    sort === 'recent' ? '&sort=publication_date:desc' : ''
+  }${openalexKey ? '&api_key=' + encodeURIComponent(openalexKey) : ''}`;
+  const r = await get(url);
+  return { total: Number(r.meta?.count || 0), items: (r.results || []).map(fromOpenAlex) };
+}
+
+// Busca no SciELO: OpenAlex primeiro; se a cota diária acabar ou ele falhar, usa o Crossref.
+async function scieloSearch(q, opts = {}) {
+  try {
+    return await scieloOpenAlex(q, opts);
+  } catch (e) {
+    const r = await scieloCrossref(q, opts);
+    r.fallback = true;
+    return r;
+  }
+}
+
+// Reserva: Crossref tende a misturar resultados que têm só uma das palavras,
+// então reordenamos pelos que contêm mais termos da busca.
+const normTxt = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+function rerank(items, q) {
+  const terms = normTxt(q)
+    .split(/[^a-z0-9]+/)
+    .filter((t) => t.length > 2 && !PARTICLES.has(t))
+    .map((t) => (t.length > 5 ? t.slice(0, -2) : t));
+  if (!terms.length) return items;
+  return items
+    .map((a, i) => {
+      const hay = normTxt(a.title + ' ' + a.abstract);
+      return { a, i, s: terms.filter((t) => hay.includes(t)).length };
+    })
+    .sort((x, y) => y.s - x.s || x.i - y.i)
+    .map((x) => x.a);
+}
+
+async function scieloCrossref(q, { start = 0, rows = 20, sort = 'relevance', from = '' } = {}) {
+  const filter = ['type:journal-article', from ? `from-pub-date:${from}` : ''].filter(Boolean).join(',');
+  const url = `${CROSSREF}prefixes/10.1590/works?query=${encodeURIComponent(q)}&rows=${rows}&offset=${start}&filter=${filter}&select=${SEL}${
+    sort === 'recent' ? '&sort=published&order=desc' : ''
+  }`;
+  const r = await get(url);
+  const items = (r.message?.items || []).map(fromCrossref);
+  return { total: Number(r.message?.['total-results'] || 0), items: sort === 'recent' ? items : rerank(items, q) };
+}
+
+// Ao salvar um artigo do SciELO, completa com os dados estruturados do Crossref
+async function enrichFromCrossref(a) {
+  if (!a.doi) return a;
+  try {
+    const c = await crossrefByDoi(a.doi);
+    return {
+      ...a,
+      authors: c.authors || a.authors,
+      journal: c.journal || a.journal,
+      journalAbbr: c.journalAbbr || a.journalAbbr,
+      year: c.year || a.year,
+      month: c.month || a.month,
+      volume: c.volume || a.volume,
+      issue: c.issue || a.issue,
+      pages: c.pages || a.pages,
+      title: a.title || c.title,
+      abstract: a.abstract || c.abstract,
+    };
+  } catch (e) {
+    return a;
+  }
+}
+
+async function crossrefByDoi(doi) {
+  const r = await get(`${CROSSREF}works/${encodeURIComponent(doi)}`);
+  return fromCrossref(r.message);
+}
+
+// ---------- Identificar o que a pessoa colou ----------
+function parseIdentifier(input) {
+  const s = String(input || '').trim();
+  if (!s) return null;
+  const pm = s.match(/pubmed\.ncbi\.nlm\.nih\.gov\/(\d{1,9})/i) || s.match(/^(?:pmid:?\s*)?(\d{1,9})$/i);
+  if (pm) return { type: 'pmid', value: pm[1] };
+  const doi = s.match(/10\.\d{4,9}\/[^\s"<>]+/i);
+  if (doi) return { type: 'doi', value: decodeURIComponent(doi[0]).replace(/[.,;)\]]+$/, '') };
+  // link do SciELO com pid: o DOI do SciELO costuma ser derivado do pid, mas não é garantido
+  return null;
+}
+
+async function lookup(input) {
+  const id = parseIdentifier(input);
+  if (!id) throw new Error('Cole um DOI (10.xxxx/...), um PMID (só números) ou o link do artigo no PubMed ou com DOI.');
+  if (id.type === 'pmid') {
+    const [art] = await pubmedSummaries([id.value]);
+    if (!art) throw new Error(`Não achei o PMID ${id.value} no PubMed.`);
+    Object.assign(art, await pubmedAbstract(id.value).catch(() => ({})));
+    return art;
+  }
+  // DOI: primeiro tenta o PubMed (traz resumo e PMID); se não estiver lá, usa o Crossref (SciELO e outras)
+  try {
+    const r = await get(`${EUTILS}esearch.fcgi?db=pubmed&retmode=json&term=${encodeURIComponent(id.value + '[doi]')}${TOOL}`);
+    const pmid = r.esearchresult?.idlist?.[0];
+    if (pmid) {
+      const [art] = await pubmedSummaries([pmid]);
+      if (art) {
+        Object.assign(art, await pubmedAbstract(pmid).catch(() => ({})));
+        if (id.value.toLowerCase().startsWith('10.1590/')) art.source = 'scielo';
+        return art;
+      }
+    }
+  } catch (e) {
+    /* segue para o Crossref */
+  }
+  try {
+    return await crossrefByDoi(id.value);
+  } catch (e) {
+    if (e.notFound) throw new Error(`Não achei o DOI ${id.value}. Confira se ele está completo.`);
+    throw e;
+  }
+}
+
+// ---------- Referências ----------
+function parseAuthors(text) {
+  return String(text || '')
+    .split(';')
+    .map((a) => a.trim())
+    .filter(Boolean)
+    .map((a) => {
+      const [family, given = ''] = a.split(',').map((x) => x.trim());
+      return { family, given };
+    });
+}
+
+function initials(given) {
+  const out = [];
+  String(given || '')
+    .split(/[\s.\-]+/)
+    .filter((t) => t && !PARTICLES.has(t.toLowerCase())) // "da", "de", "dos" não viram iniciais
+    .forEach((t) => {
+      if (/^[A-ZÀ-Ý]{1,4}$/.test(t) && t.length <= 3) out.push(...t.split(''));
+      else out.push(t[0].toUpperCase());
+    });
+  return out;
+}
+
+const MONTHS_ABNT = ['jan.', 'fev.', 'mar.', 'abr.', 'maio', 'jun.', 'jul.', 'ago.', 'set.', 'out.', 'nov.', 'dez.'];
+const endDot = (s) => (/[.?!]$/.test(s) ? s : s + '.');
+
+// ABNT NBR 6023:2018 (artigo de periódico). Até 3 autores: todos; mais de 3: primeiro + et al.
+function abnt(a, { html = false } = {}) {
+  const au = parseAuthors(a.authors);
+  const fmt = (x) => {
+    const ini = initials(x.given);
+    return `${x.family.toUpperCase()}${ini.length ? ', ' + ini.map((i) => i + '.').join(' ') : ''}`;
+  };
+  let authors = au.length > 3 ? `${fmt(au[0])} et al.` : au.map(fmt).join('; ');
+  const journal = html ? `<b>${escHtml(a.journal)}</b>` : a.journal;
+  const parts = [];
+  if (a.volume) parts.push(`v. ${a.volume}`);
+  if (a.issue) parts.push(`n. ${a.issue}`);
+  if (a.pages) parts.push(`p. ${a.pages}`);
+  const date = [a.month ? MONTHS_ABNT[Number(a.month) - 1] : '', a.year].filter(Boolean).join(' ');
+  if (date) parts.push(date);
+  let ref = `${authors ? endDot(authors) + ' ' : ''}${endDot(html ? escHtml(a.title) : a.title)} ${journal}${parts.length ? ', ' + parts.join(', ') : ''}.`;
+  if (a.doi) ref += ` DOI: https://doi.org/${a.doi}.`;
+  else if (a.url) ref += ` Disponível em: ${a.url}.`;
+  return ref;
+}
+
+// Vancouver (ICMJE/NLM). Até 6 autores; mais de 6: os 6 primeiros + et al.
+function vancouver(a) {
+  const au = parseAuthors(a.authors);
+  const fmt = (x) => `${x.family} ${initials(x.given).join('')}`.trim();
+  let authors = au.slice(0, 6).map(fmt).join(', ');
+  if (au.length > 6) authors += ', et al';
+  const journal = String(a.journalAbbr || a.journal || '').replace(/\.+$/, '');
+  let src = `${journal}. ${a.year || ''}`;
+  if (a.volume) src += `;${a.volume}`;
+  if (a.issue) src += `(${a.issue})`;
+  if (a.pages) src += `:${a.pages}`;
+  let ref = `${authors ? authors + '. ' : ''}${endDot(a.title)} ${src}.`;
+  if (a.doi) ref += ` doi:${a.doi}`;
+  return ref;
+}
+
+function escHtml(s) {
+  return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function shortAuthors(text, n = 3) {
+  const au = parseAuthors(text);
+  if (!au.length) return '';
+  const names = au.slice(0, n).map((x) => `${x.family}${x.given ? ' ' + initials(x.given).join('') : ''}`);
+  return names.join(', ') + (au.length > n ? ' et al.' : '');
+}
+
+const articleKey = (a) => (a.pmid ? 'pmid:' + a.pmid : a.doi ? 'doi:' + a.doi.toLowerCase() : 't:' + (a.title || '').toLowerCase());
+
+return { setOpenAlexKey, clean, pubmedSummaries, pubmedSearch, pubmedAbstract, scieloSearch, enrichFromCrossref, crossrefByDoi, parseIdentifier, lookup, parseAuthors, abnt, vancouver, shortAuthors, articleKey };
+})();
+
 // ===== js/views/home.js =====
 const __m_views_home = (() => {
 const { store } = __m_store;
@@ -2563,9 +3043,10 @@ function render() {
       <section class="col">
         <header class="col-head"><h2>Acervo da pesquisa</h2><a href="#/acervo" class="mini-link">Abrir ${icon('arrow')}</a></header>
         <ul class="tile-list">
+          ${archiveTile('book', 'Biblioteca de artigos', s.articles.length, '#/acervo?s=biblioteca')}
           ${archiveTile('cert', 'Certificados', s.certificates.length, '#/acervo?s=certificados')}
           ${archiveTile('mic', 'Congressos e banners', s.congresses.length, '#/acervo?s=congressos')}
-          ${archiveTile('paper', 'Produção e artigos', s.papers.length, '#/acervo?s=producao')}
+          ${archiveTile('paper', 'Minha produção', s.papers.length, '#/acervo?s=producao')}
           ${archiveTile('link', 'Modelos e links', s.links.length, '#/acervo?s=links')}
         </ul>
         <p class="muted small-note">${openTasks} tarefa(s) aberta(s) · ${s.logs.length} registro(s) de bancada</p>
@@ -2726,7 +3207,22 @@ function renderCourse(params) {
             '',
             ''
           )
-    }`;
+    }
+    ${linkedArticles(c.id)}`;
+}
+
+function linkedArticles(courseId) {
+  const list = store.list('articles').filter((a) => a.courseId === courseId);
+  if (!list.length) return '';
+  return `<section class="section linked-arts">
+    <h3 class="sub">${icon('book')} Artigos da biblioteca ligados a esta disciplina</h3>
+    <ul class="rows">${list
+      .map(
+        (a) => `<li class="row"><div class="row-main"><strong>${esc(a.title)}</strong><small class="muted">${esc([a.journal, a.year].filter(Boolean).join(' · '))}</small></div>
+        <button class="btn btn-ghost sm" data-action="edit" data-col="articles" data-id="${a.id}">${icon('note')} Fichamento</button></li>`
+      )
+      .join('')}</ul>
+  </section>`;
 }
 
 return { renderList, renderCourse };
@@ -2899,6 +3395,7 @@ function expCard(e, s) {
   const logs = s.logs.filter((l) => l.experimentId === e.id).length;
   const tasks = s.tasks.filter((t) => t.experimentId === e.id && !t.done).length;
   const drawings = s.drawings.filter((d) => d.experimentId === e.id);
+  const arts = s.articles.filter((a) => a.experimentId === e.id).length;
   return `<article class="card exp-card">
     <header class="exp-head">
       <span class="tile-ico">${icon('flask')}</span>
@@ -2920,6 +3417,7 @@ function expCard(e, s) {
       ${ethics ? `<span>${icon('shield')} ${esc(ethics.kind)} ${esc(ethics.number)}</span>` : ''}
       <a href="#/planejamento?aba=experimental&exp=${e.id}">${icon('note')} ${logs} registros</a>
       <span>${icon('check')} ${tasks} tarefas</span>
+      ${arts ? `<a href="#/acervo?s=biblioteca&exp=${e.id}">${icon('book')} ${arts} artigo(s)</a>` : ''}
       ${
         drawings.length
           ? `<a href="#/planejamento?aba=experimental&desenho=${drawings[0].id}">${icon('edit')} ${drawings.length} desenho(s)</a>`
@@ -3239,20 +3737,438 @@ function creditCards(cr) {
 return { title, render, creditCards };
 })();
 
+// ===== js/views/library.js =====
+const __m_views_library = (() => {
+// Biblioteca de artigos: busca no PubMed e no SciELO, cadastro por DOI/PMID,
+// fichamento, status de leitura e referências ABNT/Vancouver.
+const { store } = __m_store;
+const { esc, icon, toast, emptyState } = __m_ui;
+const lit = __m_lit;
+
+const READ_STATUS = [
+  ['ler', 'Quero ler'],
+  ['lendo', 'Lendo'],
+  ['lido', 'Lido'],
+];
+const statusLabel = (s) => Object.fromEntries(READ_STATUS)[s] || 'Quero ler';
+const SOURCE = { pubmed: 'PubMed', scielo: 'SciELO', crossref: 'DOI', manual: 'Manual' };
+
+// Estado da busca (fica fora do store: são resultados temporários)
+const S = {
+  q: '',
+  source: 'ambos',
+  sort: 'relevance',
+  from: '',
+  loading: false,
+  error: '',
+  results: [], // [{...artigo, _key}]
+  totals: {},
+  offsets: { pubmed: 0, scielo: 0 },
+  open: {}, // resumos abertos nos resultados
+  abstracts: {}, // pmid -> resumo carregado
+  lookupBusy: false,
+  lookupError: '',
+};
+const rerender = () => window.dispatchEvent(new Event('app:rerender'));
+
+function savedMatch(a) {
+  return store
+    .list('articles')
+    .find((x) => (a.pmid && x.pmid === a.pmid) || (a.doi && x.doi && x.doi.toLowerCase() === a.doi.toLowerCase()));
+}
+
+function citation(a) {
+  return `${esc(lit.shortAuthors(a.authors))}${a.authors ? ' · ' : ''}<i>${esc(a.journal || a.journalAbbr || '')}</i>${a.year ? ' · ' + esc(a.year) : ''}`;
+}
+
+function sourceBadge(a) {
+  return `<span class="src src-${a.source || 'manual'}">${SOURCE[a.source] || 'Manual'}</span>`;
+}
+
+function links(a) {
+  return [
+    a.pmid ? `<a href="https://pubmed.ncbi.nlm.nih.gov/${esc(a.pmid)}/" target="_blank" rel="noopener">PubMed</a>` : '',
+    a.pmcid ? `<a href="https://pmc.ncbi.nlm.nih.gov/articles/${esc(a.pmcid)}/" target="_blank" rel="noopener">Texto completo (PMC)</a>` : '',
+    a.doi ? `<a href="https://doi.org/${esc(a.doi)}" target="_blank" rel="noopener">${a.source === 'scielo' ? 'Texto completo (SciELO)' : 'DOI'}</a>` : '',
+    !a.pmid && !a.doi && a.url ? `<a href="${esc(a.url)}" target="_blank" rel="noopener">Abrir</a>` : '',
+  ]
+    .filter(Boolean)
+    .join('');
+}
+
+// ---------- Busca ----------
+function searchBox() {
+  return `<section class="card lib-search">
+    <form id="lib-form" class="lib-form" autocomplete="off">
+      <div class="lib-q">
+        ${icon('paper')}
+        <input name="q" type="search" placeholder="Buscar artigos. Ex.: chronic stress intestinal permeability" value="${esc(S.q)}" aria-label="Termos da busca" />
+        <button class="btn btn-primary" type="submit" ${S.loading ? 'disabled' : ''}>${S.loading ? 'Buscando…' : 'Buscar'}</button>
+      </div>
+      <div class="lib-opts">
+        <div class="seg" role="radiogroup" aria-label="Onde buscar">
+          ${[
+            ['ambos', 'PubMed + SciELO'],
+            ['pubmed', 'PubMed'],
+            ['scielo', 'SciELO'],
+          ]
+            .map(([v, l]) => `<label class="${S.source === v ? 'on' : ''}"><input type="radio" name="source" value="${v}" ${S.source === v ? 'checked' : ''}/> ${l}</label>`)
+            .join('')}
+        </div>
+        <label class="opt">Ordenar
+          <select name="sort"><option value="relevance" ${S.sort === 'relevance' ? 'selected' : ''}>Relevância</option><option value="recent" ${S.sort === 'recent' ? 'selected' : ''}>Mais recentes</option></select>
+        </label>
+        <label class="opt">Desde
+          <input name="from" type="number" min="1900" max="2100" placeholder="ano" value="${esc(S.from)}" />
+        </label>
+      </div>
+      <p class="lib-tip">Dica: no PubMed, use termos em inglês. No SciELO, português funciona bem. No PubMed, aspas buscam a expressão exata.</p>
+    </form>
+    <div class="lib-or"><span>ou</span></div>
+    <form id="lib-lookup" class="lib-lookup" autocomplete="off">
+      <label for="lib-id">Adicionar pelo DOI, PMID ou link</label>
+      <div class="lib-q">
+        <input id="lib-id" name="id" placeholder="Ex.: 10.1590/S0004-28032019000200004  ou  33176074" />
+        <button class="btn btn-soft" type="submit" ${S.lookupBusy ? 'disabled' : ''}>${S.lookupBusy ? 'Buscando…' : `${icon('plus')} Adicionar`}</button>
+      </div>
+      ${S.lookupError ? `<p class="lib-err">${esc(S.lookupError)}</p>` : ''}
+      <button type="button" class="link-inline" data-action="add" data-col="articles">Prefiro preencher à mão</button>
+    </form>
+  </section>`;
+}
+
+function results() {
+  if (S.error) return `<div class="lib-err box">${esc(S.error)}</div>`;
+  if (!S.q) return '';
+  if (S.loading && !S.results.length) return `<div class="lib-loading">${icon('clock')} Buscando em ${S.source === 'ambos' ? 'PubMed e SciELO' : SOURCE[S.source]}…</div>`;
+  const totals = Object.entries(S.totals)
+    .map(([k, v]) => `${SOURCE[k]}: ${v.toLocaleString('pt-BR')}`)
+    .join(' · ');
+  const canMore = ['pubmed', 'scielo'].some((k) => S.totals[k] !== undefined && S.offsets[k] < S.totals[k]);
+  return `<section class="section lib-results">
+    <header class="section-head"><h2>Resultados</h2><span class="muted small">${totals} encontrados</span>
+      <button class="link-inline" data-lib="clear">Limpar busca</button></header>
+    ${
+      S.results.length
+        ? `<ul class="art-list">${S.results.map(resultItem).join('')}</ul>
+           ${canMore ? `<div class="center"><button class="btn btn-ghost" data-lib="more" ${S.loading ? 'disabled' : ''}>${S.loading ? 'Carregando…' : 'Carregar mais'}</button></div>` : ''}`
+        : `<div class="empty small"><p>Nada encontrado. Tente outras palavras${S.source === 'pubmed' ? ' (em inglês)' : ''} ou tire o filtro de ano.</p></div>`
+    }
+  </section>`;
+}
+
+function resultItem(a, i) {
+  const saved = savedMatch(a);
+  const open = S.open[a._key];
+  const abs = a.abstract || S.abstracts[a.pmid];
+  return `<li class="art ${saved ? 'is-saved' : ''}">
+    <div class="art-main">
+      <div class="art-top">${sourceBadge(a)}<strong class="art-title">${esc(a.title)}</strong></div>
+      <small class="muted">${citation(a)}</small>
+      ${
+        open
+          ? `<div class="art-abs">${abs ? `<p class="pre">${esc(abs)}</p>` : a.pmid && S.abstracts[a.pmid] === undefined ? '<p class="muted">Carregando resumo…</p>' : '<p class="muted">Resumo não disponível nesta base.</p>'}</div>`
+          : ''
+      }
+      <div class="art-links">${links(a)}</div>
+    </div>
+    <div class="art-actions">
+      <button class="btn btn-ghost sm" data-lib="toggle-abs" data-i="${i}">${open ? 'Fechar resumo' : 'Ver resumo'}</button>
+      ${
+        saved
+          ? `<span class="saved-tag">${icon('check')} Na biblioteca</span>`
+          : `<button class="btn btn-primary sm" data-lib="save" data-i="${i}">${icon('plus')} Salvar</button>`
+      }
+    </div>
+  </li>`;
+}
+
+// ---------- Minha biblioteca ----------
+function library(params) {
+  const all = [...store.list('articles')].sort((a, b) => (b.createdAt || '').localeCompare(a.createdAt || ''));
+  const st = params.get('ler') || '';
+  const expF = params.get('exp') || '';
+  const list = all.filter((a) => (!st || (st === 'citar' ? a.cite : (a.status || 'ler') === st)) && (!expF || a.experimentId === expF));
+  const count = (k) => all.filter((a) => (k === 'citar' ? a.cite : (a.status || 'ler') === k)).length;
+  const exps = Object.fromEntries(store.list('experiments').map((e) => [e.id, e.title]));
+  const courses = Object.fromEntries(store.list('courses').map((c) => [c.id, c.name]));
+  const base = '#/acervo?s=biblioteca';
+  return `<section class="section">
+    <header class="section-head">
+      <h2>${icon('book')} Minha biblioteca <span class="count">${all.length}</span></h2>
+      ${all.length ? `<input class="select-sm lib-filter" id="lib-filter" type="search" placeholder="Filtrar por título, autor, etiqueta…" aria-label="Filtrar biblioteca" />` : ''}
+    </header>
+    ${
+      all.length
+        ? `<nav class="chips lib-chips" aria-label="Filtrar por leitura">
+        <a class="chip ${!st ? 'on' : ''}" href="${base}${expF ? '&exp=' + expF : ''}">Todos <b>${all.length}</b></a>
+        ${READ_STATUS.map(([k, l]) => `<a class="chip ${st === k ? 'on' : ''}" href="${base}&ler=${k}${expF ? '&exp=' + expF : ''}">${l} <b>${count(k)}</b></a>`).join('')}
+        <a class="chip ${st === 'citar' ? 'on' : ''}" href="${base}&ler=citar${expF ? '&exp=' + expF : ''}">★ Para citar <b>${count('citar')}</b></a>
+        ${expF ? `<a class="chip on" href="${base}${st ? '&ler=' + st : ''}">${icon('flask')} ${esc(exps[expF] || 'Experimento')} ✕</a>` : ''}
+      </nav>`
+        : ''
+    }
+    ${
+      list.length
+        ? `<ul class="art-list" id="lib-list">${list
+            .map((a) => {
+              const hay = [a.title, a.authors, a.journal, a.tags, a.notes, a.year].join(' ').toLowerCase();
+              return `<li class="art saved" data-hay="${esc(hay)}">
+            <div class="art-main">
+              <div class="art-top">${sourceBadge(a)}<strong class="art-title">${esc(a.title)}</strong>${a.cite ? '<span class="star" title="Para citar">★</span>' : ''}</div>
+              <small class="muted">${citation(a)}</small>
+              <div class="chips">
+                <span class="pill rs-${a.status || 'ler'}">${statusLabel(a.status)}</span>
+                ${a.experimentId && exps[a.experimentId] ? `<span class="pill">${icon('flask')} ${esc(exps[a.experimentId])}</span>` : ''}
+                ${a.courseId && courses[a.courseId] ? `<span class="pill">${icon('book')} ${esc(courses[a.courseId])}</span>` : ''}
+                ${(a.tags || '')
+                  .split(',')
+                  .map((t) => t.trim())
+                  .filter(Boolean)
+                  .map((t) => `<span class="pill tag-pill">#${esc(t)}</span>`)
+                  .join('')}
+              </div>
+              ${a.notes ? `<div class="art-notes"><h4>Fichamento</h4><p class="pre clamp3">${esc(a.notes)}</p></div>` : ''}
+              <details class="art-abs-d"><summary>Resumo e referências</summary>
+                ${a.abstract ? `<p class="pre">${esc(a.abstract)}</p>` : '<p class="muted">Sem resumo.</p>'}
+                ${a.keywords ? `<p class="small muted">Palavras-chave: ${esc(a.keywords)}</p>` : ''}
+                <div class="refbox"><span>ABNT</span><p>${lit.abnt(a, { html: true })}</p><button class="btn btn-ghost sm" data-lib="copy-abnt" data-id="${a.id}">${icon('copy')} Copiar</button></div>
+                <div class="refbox"><span>Vancouver</span><p>${esc(lit.vancouver(a))}</p><button class="btn btn-ghost sm" data-lib="copy-vanc" data-id="${a.id}">${icon('copy')} Copiar</button></div>
+              </details>
+              <div class="art-links">${links(a)}</div>
+            </div>
+            <div class="art-actions">
+              <select class="select-sm" data-lib="status" data-id="${a.id}" aria-label="Situação da leitura">
+                ${READ_STATUS.map(([k, l]) => `<option value="${k}" ${(a.status || 'ler') === k ? 'selected' : ''}>${l}</option>`).join('')}
+              </select>
+              <button class="btn btn-soft sm" data-action="edit" data-col="articles" data-id="${a.id}">${icon('note')} Fichamento</button>
+              <button class="btn btn-ghost sm" data-lib="copy-abnt" data-id="${a.id}">${icon('copy')} ABNT</button>
+              <button class="icon-btn danger" data-action="delete" data-col="articles" data-id="${a.id}" title="Remover" aria-label="Remover">${icon('trash')}</button>
+            </div>
+          </li>`;
+            })
+            .join('')}</ul>
+          <p class="muted small" id="lib-nomatch" hidden>Nenhum artigo da biblioteca bate com esse filtro.</p>`
+        : all.length
+        ? `<div class="empty small"><p>Nenhum artigo nesse filtro.</p></div>`
+        : emptyState('Sua biblioteca está vazia. Busque acima ou cole um DOI/PMID. Cada artigo salvo ganha fichamento, status de leitura e referência ABNT pronta.', '', '')
+    }
+  </section>`;
+}
+
+function render(params) {
+  return `<div class="lib">${searchBox()}${results()}${library(params)}</div>`;
+}
+
+// ---------- Ações ----------
+async function runSearch(more = false) {
+  if (!S.q.trim()) return;
+  S.loading = true;
+  S.error = '';
+  if (!more) {
+    S.fallback = false;
+    S.results = [];
+    S.totals = {};
+    S.offsets = { pubmed: 0, scielo: 0 };
+    S.open = {};
+  }
+  rerender();
+  const rows = S.source === 'ambos' ? 10 : 20;
+  const opts = (k) => ({ start: S.offsets[k], rows, sort: S.sort, from: S.from });
+  const jobs = [];
+  const want = (k) => S.source === 'ambos' || S.source === k;
+  const add = (k, p) =>
+    jobs.push(
+      p.then((r) => {
+        S.totals[k] = r.total;
+        if (r.fallback) S.fallback = true;
+        S.offsets[k] += r.items.length;
+        return r.items;
+      })
+    );
+  if (want('pubmed') && (!more || S.offsets.pubmed < (S.totals.pubmed ?? Infinity))) add('pubmed', lit.pubmedSearch(S.q, opts('pubmed')));
+  if (want('scielo') && (!more || S.offsets.scielo < (S.totals.scielo ?? Infinity))) add('scielo', lit.scieloSearch(S.q, opts('scielo')));
+  const settled = await Promise.allSettled(jobs);
+  const lists = settled.filter((x) => x.status === 'fulfilled').map((x) => x.value);
+  const errors = settled.filter((x) => x.status === 'rejected').map((x) => x.reason?.message);
+  // intercala as fontes para não ficar tudo de uma só no topo
+  const merged = [];
+  const max = Math.max(0, ...lists.map((l) => l.length));
+  for (let i = 0; i < max; i++) lists.forEach((l) => l[i] && merged.push(l[i]));
+  const seen = new Set(S.results.map((r) => r._key));
+  merged.forEach((a) => {
+    a._key = lit.articleKey(a);
+    if (a.doi && S.results.some((r) => r.doi && r.doi.toLowerCase() === a.doi.toLowerCase())) return;
+    if (!seen.has(a._key)) {
+      seen.add(a._key);
+      S.results.push(a);
+    }
+  });
+  if (S.fallback && !more) toast('A cota diária grátis do OpenAlex acabou nesta rede. Usei a busca reserva do SciELO, que é menos precisa. Veja Configurações.');
+  if (errors.length && !lists.length) S.error = errors[0];
+  else if (errors.length) toast(`Uma das bases não respondeu: ${errors[0]}`);
+  S.loading = false;
+  rerender();
+}
+
+async function saveArticle(a) {
+  if (savedMatch(a)) return toast('Este artigo já está na sua biblioteca');
+  let data = { ...a };
+  delete data._key;
+  if (data.source === 'scielo' && data.doi) data = await lit.enrichFromCrossref(data);
+  if (data.pmid && !data.abstract) {
+    try {
+      Object.assign(data, await lit.pubmedAbstract(data.pmid));
+    } catch (e) {
+      /* salva sem resumo */
+    }
+  }
+  store.add('articles', { ...data, status: 'ler', cite: false, tags: '', notes: '', experimentId: '', courseId: '' });
+  toast('Salvo na biblioteca');
+}
+
+async function copyRef(a, kind) {
+  const text = kind === 'abnt' ? lit.abnt(a) : lit.vancouver(a);
+  try {
+    if (kind === 'abnt' && window.ClipboardItem) {
+      const html = lit.abnt(a, { html: true });
+      await navigator.clipboard.write([
+        new ClipboardItem({ 'text/plain': new Blob([text], { type: 'text/plain' }), 'text/html': new Blob([html], { type: 'text/html' }) }),
+      ]);
+    } else await navigator.clipboard.writeText(text);
+    toast(kind === 'abnt' ? 'Referência ABNT copiada (com o periódico em negrito)' : 'Referência Vancouver copiada');
+  } catch (e) {
+    window.prompt('Copie a referência:', text);
+  }
+}
+
+function mount() {
+  lit.setOpenAlexKey(store.get().profile?.openalexKey);
+  const root = document.querySelector('.lib');
+  if (!root) return null;
+
+  root.querySelector('#lib-form')?.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const f = e.target;
+    S.q = f.q.value.trim();
+    S.source = f.source.value;
+    S.sort = f.sort.value;
+    S.from = f.from.value.trim();
+    if (!S.q) return f.q.focus();
+    runSearch();
+  });
+  root.querySelector('#lib-form')?.addEventListener('change', (e) => {
+    if (e.target.name === 'source') {
+      root.querySelectorAll('.seg label').forEach((l) => l.classList.toggle('on', l.querySelector('input').checked));
+    }
+  });
+
+  root.querySelector('#lib-lookup')?.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const v = e.target.id.value;
+    S.lookupError = '';
+    S.lookupBusy = true;
+    rerender();
+    try {
+      const a = await lit.lookup(v);
+      const dup = savedMatch(a);
+      S.lookupBusy = false;
+      if (dup) {
+        toast('Este artigo já está na sua biblioteca');
+        rerender();
+        return;
+      }
+      store.add('articles', { ...a, status: 'ler', cite: false, tags: '', notes: '', experimentId: '', courseId: '' });
+      toast(`Adicionado: ${a.title.slice(0, 60)}${a.title.length > 60 ? '…' : ''}`);
+    } catch (err) {
+      S.lookupBusy = false;
+      S.lookupError = err.message;
+      rerender();
+      document.getElementById('lib-id').value = v;
+    }
+  });
+
+  root.addEventListener('click', async (e) => {
+    const b = e.target.closest('[data-lib]');
+    if (!b) return;
+    const act = b.dataset.lib;
+    if (act === 'clear') {
+      Object.assign(S, { q: '', results: [], totals: {}, error: '', open: {} });
+      rerender();
+    }
+    if (act === 'more') runSearch(true);
+    if (act === 'save') {
+      b.disabled = true;
+      b.textContent = 'Salvando…';
+      await saveArticle(S.results[Number(b.dataset.i)]);
+    }
+    if (act === 'toggle-abs') {
+      const a = S.results[Number(b.dataset.i)];
+      S.open[a._key] = !S.open[a._key];
+      rerender();
+      if (S.open[a._key] && a.pmid && !a.abstract && S.abstracts[a.pmid] === undefined) {
+        try {
+          const r = await lit.pubmedAbstract(a.pmid);
+          S.abstracts[a.pmid] = r.abstract;
+        } catch (err) {
+          S.abstracts[a.pmid] = '';
+        }
+        rerender();
+      }
+    }
+    if (act === 'copy-abnt' || act === 'copy-vanc') {
+      const a = store.find('articles', b.dataset.id);
+      if (a) copyRef(a, act === 'copy-abnt' ? 'abnt' : 'vanc');
+    }
+  });
+
+  root.addEventListener('change', (e) => {
+    const el = e.target;
+    if (el.dataset.lib === 'status') {
+      store.update('articles', el.dataset.id, { status: el.value });
+      toast(`Marcado como “${statusLabel(el.value)}”`);
+    }
+  });
+
+  const filter = root.querySelector('#lib-filter');
+  filter?.addEventListener('input', () => {
+    const q = filter.value.trim().toLowerCase();
+    let shown = 0;
+    root.querySelectorAll('#lib-list > li').forEach((li) => {
+      const ok = !q || li.dataset.hay.includes(q);
+      li.hidden = !ok;
+      if (ok) shown++;
+    });
+    const nm = root.querySelector('#lib-nomatch');
+    if (nm) nm.hidden = shown > 0;
+  });
+
+  return null;
+}
+
+return { READ_STATUS, render, mount };
+})();
+
 // ===== js/views/archive.js =====
 const __m_views_archive = (() => {
 const { store } = __m_store;
 const { esc, icon, fmtDate, badge, rowActions, emptyState, todayISO } = __m_ui;
 const { PAPER_STATUS, SCHEMAS } = __m_schemas;
+const library = __m_views_library;
 
 const title = 'Acervo';
 
 const TABS = [
-  ['producao', 'Produção', 'paper', 'papers'],
+  ['biblioteca', 'Biblioteca de artigos', 'book', 'articles'],
+  ['producao', 'Minha produção', 'paper', 'papers'],
   ['congressos', 'Congressos e banners', 'mic', 'congresses'],
   ['certificados', 'Certificados', 'cert', 'certificates'],
   ['links', 'Modelos e links', 'link', 'links'],
 ];
+
+function mount(params) {
+  return (params.get('s') || 'biblioteca') === 'biblioteca' ? library.mount(params) : null;
+}
 
 function render(params) {
   const s = store.get();
@@ -3264,7 +4180,7 @@ function render(params) {
       <div><p class="eyebrow dark">Acervo da pesquisa</p><h1>Tudo o que você produziu</h1></div>
       <div class="head-actions">
         <button class="btn btn-ghost" data-action="lattes">${icon('copy')} Texto para o Lattes</button>
-        <button class="btn btn-primary" data-action="add" data-col="${col}">${icon('plus')} Adicionar</button>
+        ${key === 'biblioteca' ? '' : `<button class="btn btn-primary" data-action="add" data-col="${col}">${icon('plus')} Adicionar</button>`}
       </div>
     </header>
 
@@ -3274,7 +4190,7 @@ function render(params) {
       ).join('')}
     </nav>
 
-    ${{ producao: papers, congressos: congresses, certificados: certificates, links }[key](s)}
+    ${key === 'biblioteca' ? library.render(params) : { producao: papers, congressos: congresses, certificados: certificates, links }[key](s)}
   </div>`;
 }
 
@@ -3395,7 +4311,7 @@ function lattesText() {
   return lines.join('\n').trim() || 'Ainda não há itens suficientes no acervo para gerar o texto.';
 }
 
-return { title, render, lattesText };
+return { title, mount, render, lattesText };
 })();
 
 // ===== js/views/settings.js =====
@@ -3432,6 +4348,18 @@ function render() {
       <button class="btn btn-ghost" data-action="demo">Carregar exemplo</button>
     </section>
 
+    <section class="card setting">
+      <div><h3>${icon('book')} Chave do OpenAlex (opcional)</h3>
+      <p class="muted">A busca no SciELO usa o OpenAlex. Sem chave, cada rede tem uma cota grátis de cerca de 100 buscas por dia, que é dividida com todo mundo da mesma rede, como a da universidade. Com uma chave gratuita, a cota passa a ser só sua e 10 vezes maior. Para criar: entre em <a href="https://openalex.org" target="_blank" rel="noopener">openalex.org</a>, crie uma conta e copie a chave em Settings → API.</p>
+      <form class="key-form" data-key-form>
+        <input name="key" type="password" autocomplete="off" placeholder="Cole sua chave aqui" value="${s.profile?.openalexKey ? '••••••••••••' : ''}" aria-label="Chave do OpenAlex" />
+        <button class="btn btn-ghost" type="submit">Salvar chave</button>
+        ${s.profile?.openalexKey ? '<button class="btn btn-ghost" type="button" data-key-clear>Remover</button>' : ''}
+      </form>
+      ${s.profile?.openalexKey ? '<small class="muted">✓ Chave salva neste navegador.</small>' : ''}
+      </div>
+    </section>
+
     <section class="card setting danger-zone">
       <div><h3>${icon('trash')} Apagar tudo</h3>
       <p class="muted">Remove todos os dados deste navegador. Não dá para desfazer sem um backup.</p></div>
@@ -3440,7 +4368,20 @@ function render() {
   </div>`;
 }
 
-return { title, render };
+function mount() {
+  const f = document.querySelector('[data-key-form]');
+  if (!f) return null;
+  f.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const v = f.key.value.trim();
+    if (!v || /^•+$/.test(v)) return;
+    store.setProfile({ openalexKey: v });
+  });
+  document.querySelector('[data-key-clear]')?.addEventListener('click', () => store.setProfile({ openalexKey: '' }));
+  return null;
+}
+
+return { title, render, mount };
 })();
 
 // ===== js/app.js =====
@@ -3759,6 +4700,8 @@ document.addEventListener('change', (e) => {
 document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal();
 });
+
+window.addEventListener('app:rerender', () => render());
 
 window.addEventListener('hashchange', () => {
   closeModal();

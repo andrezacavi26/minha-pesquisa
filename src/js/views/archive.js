@@ -1,15 +1,21 @@
 import { store } from '../store.js';
 import { esc, icon, fmtDate, badge, rowActions, emptyState, todayISO } from '../ui.js';
 import { PAPER_STATUS, SCHEMAS } from '../schemas.js';
+import * as library from './library.js';
 
 export const title = 'Acervo';
 
 const TABS = [
-  ['producao', 'Produção', 'paper', 'papers'],
+  ['biblioteca', 'Biblioteca de artigos', 'book', 'articles'],
+  ['producao', 'Minha produção', 'paper', 'papers'],
   ['congressos', 'Congressos e banners', 'mic', 'congresses'],
   ['certificados', 'Certificados', 'cert', 'certificates'],
   ['links', 'Modelos e links', 'link', 'links'],
 ];
+
+export function mount(params) {
+  return (params.get('s') || 'biblioteca') === 'biblioteca' ? library.mount(params) : null;
+}
 
 export function render(params) {
   const s = store.get();
@@ -21,7 +27,7 @@ export function render(params) {
       <div><p class="eyebrow dark">Acervo da pesquisa</p><h1>Tudo o que você produziu</h1></div>
       <div class="head-actions">
         <button class="btn btn-ghost" data-action="lattes">${icon('copy')} Texto para o Lattes</button>
-        <button class="btn btn-primary" data-action="add" data-col="${col}">${icon('plus')} Adicionar</button>
+        ${key === 'biblioteca' ? '' : `<button class="btn btn-primary" data-action="add" data-col="${col}">${icon('plus')} Adicionar</button>`}
       </div>
     </header>
 
@@ -31,7 +37,7 @@ export function render(params) {
       ).join('')}
     </nav>
 
-    ${{ producao: papers, congressos: congresses, certificados: certificates, links }[key](s)}
+    ${key === 'biblioteca' ? library.render(params) : { producao: papers, congressos: congresses, certificados: certificates, links }[key](s)}
   </div>`;
 }
 

@@ -141,5 +141,20 @@ export function renderCourse(params) {
             '',
             ''
           )
-    }`;
+    }
+    ${linkedArticles(c.id)}`;
+}
+
+function linkedArticles(courseId) {
+  const list = store.list('articles').filter((a) => a.courseId === courseId);
+  if (!list.length) return '';
+  return `<section class="section linked-arts">
+    <h3 class="sub">${icon('book')} Artigos da biblioteca ligados a esta disciplina</h3>
+    <ul class="rows">${list
+      .map(
+        (a) => `<li class="row"><div class="row-main"><strong>${esc(a.title)}</strong><small class="muted">${esc([a.journal, a.year].filter(Boolean).join(' · '))}</small></div>
+        <button class="btn btn-ghost sm" data-action="edit" data-col="articles" data-id="${a.id}">${icon('note')} Fichamento</button></li>`
+      )
+      .join('')}</ul>
+  </section>`;
 }

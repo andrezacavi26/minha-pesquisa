@@ -162,6 +162,26 @@ export const SCHEMAS = {
       { name: 'url', label: 'Link da ementa', type: 'url', full: true },
     ],
   },
+  articles: {
+    label: 'artigo',
+    fields: () => [
+      { name: 'title', label: 'Título', required: true, full: true },
+      { name: 'authors', label: 'Autores', full: true, placeholder: 'Sobrenome, Nome; Sobrenome, Nome', hint: 'Separe os autores com ponto e vírgula, no formato Sobrenome, Nome.' },
+      { name: 'journal', label: 'Revista' },
+      { name: 'year', label: 'Ano', type: 'number' },
+      { name: 'volume', label: 'Volume' },
+      { name: 'issue', label: 'Número' },
+      { name: 'pages', label: 'Páginas', placeholder: '120-123' },
+      { name: 'doi', label: 'DOI', placeholder: '10.1590/...' },
+      { name: 'status', label: 'Leitura', type: 'select', options: [['ler', 'Quero ler'], ['lendo', 'Lendo'], ['lido', 'Lido']] },
+      { name: 'cite', label: '★ Quero citar na tese / artigo', type: 'checkbox' },
+      { name: 'experimentId', label: 'Experimento relacionado', type: 'select', options: [['', '— nenhum —'], ...store.list('experiments').map((e) => [e.id, e.title])] },
+      { name: 'courseId', label: 'Disciplina relacionada', type: 'select', options: [['', '— nenhuma —'], ...store.list('courses').map((c) => [c.id, c.name])] },
+      { name: 'tags', label: 'Etiquetas', full: true, placeholder: 'Ex.: junções firmes, revisão, método', hint: 'Separe com vírgulas.' },
+      { name: 'notes', label: 'Fichamento', type: 'textarea', rows: 7, placeholder: 'Objetivo:\nMétodos (modelo, n, protocolo):\nPrincipais resultados:\nLimitações:\nComo uso na minha pesquisa:' },
+      { name: 'abstract', label: 'Resumo', type: 'textarea', rows: 4 },
+    ],
+  },
   assessments: {
     label: 'atividade',
     fields: () => [

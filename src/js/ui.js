@@ -117,6 +117,7 @@ export function progressBar(pct, cls = '') {
 
 // ---------- Toast ----------
 export function toast(msg) {
+  document.querySelectorAll('.toast').forEach((t) => t.remove());
   const el = document.createElement('div');
   el.className = 'toast';
   el.textContent = msg;

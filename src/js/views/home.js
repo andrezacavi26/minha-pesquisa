@@ -176,9 +176,10 @@ export function render() {
       <section class="col">
         <header class="col-head"><h2>Acervo da pesquisa</h2><a href="#/acervo" class="mini-link">Abrir ${icon('arrow')}</a></header>
         <ul class="tile-list">
+          ${archiveTile('book', 'Biblioteca de artigos', s.articles.length, '#/acervo?s=biblioteca')}
           ${archiveTile('cert', 'Certificados', s.certificates.length, '#/acervo?s=certificados')}
           ${archiveTile('mic', 'Congressos e banners', s.congresses.length, '#/acervo?s=congressos')}
-          ${archiveTile('paper', 'Produção e artigos', s.papers.length, '#/acervo?s=producao')}
+          ${archiveTile('paper', 'Minha produção', s.papers.length, '#/acervo?s=producao')}
           ${archiveTile('link', 'Modelos e links', s.links.length, '#/acervo?s=links')}
         </ul>
         <p class="muted small-note">${openTasks} tarefa(s) aberta(s) · ${s.logs.length} registro(s) de bancada</p>

@@ -313,6 +313,8 @@ document.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') closeModal();
 });
 
+window.addEventListener('app:rerender', () => render());
+
 window.addEventListener('hashchange', () => {
   closeModal();
   render();

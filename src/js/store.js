@@ -18,6 +18,7 @@ export const COLLECTIONS = [
   'links', // modelos, templates, artigos e links
   'assessments', // provas, trabalhos e apresentações de cada disciplina
   'drawings', // desenhos experimentais
+  'articles', // biblioteca de artigos (PubMed, SciELO, manual)
 ];
 
 function empty() {

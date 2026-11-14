@@ -163,6 +163,7 @@ function expCard(e, s) {
   const logs = s.logs.filter((l) => l.experimentId === e.id).length;
   const tasks = s.tasks.filter((t) => t.experimentId === e.id && !t.done).length;
   const drawings = s.drawings.filter((d) => d.experimentId === e.id);
+  const arts = s.articles.filter((a) => a.experimentId === e.id).length;
   return `<article class="card exp-card">
     <header class="exp-head">
       <span class="tile-ico">${icon('flask')}</span>
@@ -184,6 +185,7 @@ function expCard(e, s) {
       ${ethics ? `<span>${icon('shield')} ${esc(ethics.kind)} ${esc(ethics.number)}</span>` : ''}
       <a href="#/planejamento?aba=experimental&exp=${e.id}">${icon('note')} ${logs} registros</a>
       <span>${icon('check')} ${tasks} tarefas</span>
+      ${arts ? `<a href="#/acervo?s=biblioteca&exp=${e.id}">${icon('book')} ${arts} artigo(s)</a>` : ''}
       ${
         drawings.length
           ? `<a href="#/planejamento?aba=experimental&desenho=${drawings[0].id}">${icon('edit')} ${drawings.length} desenho(s)</a>`
