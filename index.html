@@ -729,12 +729,62 @@ a.tile:hover, .tile.ghost:hover { border-color: #a6e5cf; }
 .key-form input { flex: 1; min-width: 200px; font: inherit; padding: 9px 12px; border: 1px solid #c9dcd9; border-radius: 10px; }
 .setting > div { flex: 1; }
 
+/* ===== Conta e sincronização ===== */
+.splash-text { color: #cfe9e5; font-size: 17px; }
+.auth .welcome-card { gap: 14px; }
+.auth h1 { font-size: clamp(30px, 5vw, 44px); }
+.auth-card { width: min(420px, 100%); background: #fff; color: var(--ink); border-radius: 20px; padding: 24px; text-align: left; box-shadow: 0 20px 50px rgba(0,0,0,.25); display: flex; flex-direction: column; gap: 14px; }
+.auth-card h2 { font-size: 21px; }
+.auth-card .muted { color: var(--muted); font-size: 14.5px; }
+.auth-form { display: flex; flex-direction: column; gap: 12px; }
+.auth-form .field input { font: inherit; font-size: 16px; border: 1px solid #c9dcd9; border-radius: 10px; padding: 11px 12px; background: #fbfdfd; width: 100%; }
+.auth-form .field input:focus { outline: none; border-color: var(--mint-2); box-shadow: 0 0 0 3px rgba(62,232,181,.25); background: #fff; }
+.auth-tabs { display: grid; grid-template-columns: 1fr 1fr; background: #e6efee; border-radius: 12px; padding: 4px; }
+.auth-tabs button { border: 0; background: transparent; padding: 9px; border-radius: 9px; font-weight: 600; color: var(--ink-2); }
+.auth-tabs button.on { background: #fff; color: var(--ink); box-shadow: 0 1px 3px rgba(10,42,44,.12); }
+.auth-card .link-inline { align-self: flex-start; font-size: 14px; }
+.auth-err { background: var(--late-soft); color: #9b2b31; border-radius: 10px; padding: 10px 12px; font-size: 14.5px; }
+.auth-ok { background: var(--mint-softer); color: #0b5a45; border-radius: 10px; padding: 10px 12px; font-size: 14.5px; }
+.link-light { background: none; border: 0; color: #bfe0db; text-decoration: underline; font-size: 14.5px; padding: 4px; }
+.link-light:hover { color: #fff; }
+#sync-slot { display: flex; }
+.sync { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: #cfe9e5; text-decoration: none; padding: 5px 10px; border-radius: 999px; background: rgba(255,255,255,.06); white-space: nowrap; }
+.sync-dot { width: 8px; height: 8px; border-radius: 50%; background: currentColor; flex: none; }
+.sync-ok .sync-dot { background: var(--mint); }
+.sync-wait .sync-dot { background: #f3c56b; animation: pulse 1s infinite alternate; }
+.sync-off .sync-dot { background: #a9c9c5; }
+.sync-bad { color: #ffd2d4; }
+.sync-bad .sync-dot { background: #ff7b83; }
+@keyframes pulse { to { opacity: .35; } }
+.setting.account .sync { background: var(--deep); }
+.sync-line { margin-top: 8px; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.account-actions { display: flex; flex-direction: column; gap: 8px; flex: none; }
+.modal-backdrop.conflict { z-index: 70; }
+.cf-actions { display: flex; flex-direction: column; gap: 8px; margin: 6px 0 12px; }
+.modal.modal-sm h2 { font-size: 20px; margin-bottom: 10px; }
+@media (max-width: 1380px) { .sync-text { display: none; } .sync { padding: 8px; } }
+.brand-name { white-space: nowrap; }
+@media (prefers-reduced-motion: reduce) { .sync-wait .sync-dot { animation: none; } }
+
 </style>
   </head>
   <body>
     <div id="app" aria-live="polite"></div>
     <noscript>Ative o JavaScript para usar o Minha Pesquisa.</noscript>
     <script type="module">
+// ===== js/config.js =====
+const __m_config = (() => {
+// Conexão com o Supabase (login e dados na nuvem).
+// A chave publicável pode ficar no código: quem protege os dados são as regras de
+// Row Level Security do banco (cada pessoa só lê e grava os próprios dados).
+// Se ficar vazio, o sistema funciona só no navegador.
+const SUPABASE_URL = 'https://zazsawtgvyiucorkbmow.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_8s4lMxa1KvTyG6aXVRhgbw_ZA29-LGL';
+const SUPABASE_JS = 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/+esm';
+
+return { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_JS };
+})();
+
 // ===== js/store.js =====
 const __m_store = (() => {
 // Camada de dados: tudo fica no localStorage do navegador.
@@ -768,6 +818,7 @@ function empty() {
 
 let state = load();
 const listeners = new Set();
+const persistHooks = new Set(); // chamados em todo salvamento (inclusive silencioso): usado pela sincronização
 
 function load() {
   try {
@@ -782,12 +833,14 @@ function load() {
   }
 }
 
-function persist(silent = false) {
+// origin: 'local' (mudança feita aqui) ou 'cloud' (veio da nuvem, não precisa reenviar)
+function persist(silent = false, origin = 'local') {
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
   } catch (e) {
     console.warn('Não foi possível salvar', e);
   }
+  persistHooks.forEach((fn) => fn(state, origin));
   if (!silent) listeners.forEach((fn) => fn(state));
 }
 
@@ -801,6 +854,10 @@ const store = {
   subscribe(fn) {
     listeners.add(fn);
     return () => listeners.delete(fn);
+  },
+  onPersist(fn) {
+    persistHooks.add(fn);
+    return () => persistHooks.delete(fn);
   },
   setProfile(profile) {
     state.profile = { ...(state.profile || {}), ...profile };
@@ -825,13 +882,16 @@ const store = {
     state[col] = state[col].filter((x) => x.id !== id);
     persist();
   },
-  replaceAll(next) {
+  replaceAll(next, { origin = 'local' } = {}) {
     state = { ...empty(), ...next };
-    persist();
+    persist(false, origin);
   },
-  reset() {
+  reset({ origin = 'local' } = {}) {
     state = empty();
-    persist();
+    persist(false, origin);
+  },
+  hasContent() {
+    return !!state.profile || COLLECTIONS.some((c) => (state[c] || []).length);
   },
 };
 
@@ -2871,6 +2931,426 @@ const articleKey = (a) => (a.pmid ? 'pmid:' + a.pmid : a.doi ? 'doi:' + a.doi.to
 return { setOpenAlexKey, clean, pubmedSummaries, pubmedSearch, pubmedAbstract, scieloSearch, enrichFromCrossref, crossrefByDoi, parseIdentifier, lookup, parseAuthors, abnt, vancouver, shortAuthors, articleKey };
 })();
 
+// ===== js/cloud.js =====
+const __m_cloud = (() => {
+// Login e sincronização com o Supabase.
+// Modelo: um documento JSON por pessoa (tabela user_data). O navegador guarda uma cópia
+// local (funciona sem internet) e envia as mudanças para a nuvem alguns segundos depois.
+// Controle de versão pelo updated_at: se outro aparelho salvou antes, avisamos em vez de
+// sobrescrever.
+const { SUPABASE_URL, SUPABASE_ANON_KEY, SUPABASE_JS } = __m_config;
+const { store } = __m_store;
+
+const META_KEY = 'minhapesquisa:sync';
+const LOCAL_ONLY_KEY = 'minhapesquisa:local-only';
+const PUSH_DELAY = 1500;
+
+const cloudEnabled = !!(SUPABASE_URL && SUPABASE_ANON_KEY);
+
+let sb = null;
+let readyForUser = null; // id do usuário cuja sincronização inicial já foi feita
+let pushTimer = null;
+let retryTimer = null;
+let remoteExists = false;
+const listeners = new Set();
+
+const cloud = {
+  ready: !cloudEnabled, // vira true quando a sessão foi verificada
+  user: null,
+  status: 'off', // off | syncing | pending | saving | synced | offline | error | conflict
+  error: '',
+  conflict: null, // { remote: {data, updated_at}, firstLogin }
+  recovery: false, // chegou pelo link de "esqueci a senha"
+};
+
+const onCloudChange = (fn) => {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+};
+const emit = () => listeners.forEach((fn) => fn(cloud));
+
+function meta() {
+  try {
+    return JSON.parse(localStorage.getItem(META_KEY)) || {};
+  } catch (e) {
+    return {};
+  }
+}
+function setMeta(m) {
+  if (cloud.user?.email && m.userId === cloud.user.id) m = { ...m, email: cloud.user.email };
+  try {
+    localStorage.setItem(META_KEY, JSON.stringify(m));
+  } catch (e) {
+    /* sem armazenamento local */
+  }
+}
+const sameTime = (a, b) => !!a && !!b && Date.parse(a) === Date.parse(b);
+
+const isLocalOnly = () => {
+  try {
+    return localStorage.getItem(LOCAL_ONLY_KEY) === '1';
+  } catch (e) {
+    return false;
+  }
+};
+function setLocalOnly(v) {
+  try {
+    if (v) localStorage.setItem(LOCAL_ONLY_KEY, '1');
+    else localStorage.removeItem(LOCAL_ONLY_KEY);
+  } catch (e) {
+    /* ok */
+  }
+  emit();
+}
+
+let importAttempt = 0;
+async function client() {
+  if (sb) return sb;
+  // o navegador guarda o erro de um import que falhou: em nova tentativa, muda o endereço
+  const url = importAttempt++ ? `${SUPABASE_JS}?tentativa=${importAttempt}` : SUPABASE_JS;
+  const mod = await import(url);
+  sb = mod.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+    auth: { flowType: 'pkce', persistSession: true, autoRefreshToken: true, detectSessionInUrl: true },
+  });
+  return sb;
+}
+
+// Executa uma consulta e nunca lança: falha de rede vira { error }
+async function q(promiseLike) {
+  try {
+    const r = await promiseLike;
+    return r || { data: null, error: { message: 'sem resposta' } };
+  } catch (e) {
+    return { data: null, error: { message: e?.message || 'Failed to fetch', network: true } };
+  }
+}
+const isNetwork = (err) => !navigator.onLine || err?.network || /fetch|network|load failed/i.test(err?.message || '');
+const OFFLINE_MSG = 'Sem internet. As alterações ficam salvas neste aparelho e sobem quando a conexão voltar.';
+
+function setStatus(status, error = '') {
+  cloud.status = status;
+  cloud.error = error;
+  emit();
+}
+
+// ---------- Inicialização ----------
+let listenersOn = false;
+async function initCloud() {
+  if (!cloudEnabled) return;
+  try {
+    await client();
+  } catch (e) {
+    // Sem internet ao abrir. Se a pessoa já estava conectada, abre normalmente com a cópia
+    // deste aparelho; as alterações ficam pendentes e sobem quando a conexão voltar.
+    const m = meta();
+    if (m.userId) {
+      cloud.user = { id: m.userId, email: m.email || '', offline: true };
+      readyForUser = m.userId;
+    }
+    cloud.ready = true;
+    setStatus('offline', OFFLINE_MSG);
+    const retry = () => {
+      window.removeEventListener('online', retry);
+      clearInterval(retryInit);
+      reconnect();
+    };
+    const retryInit = setInterval(() => navigator.onLine && retry(), 30000);
+    window.addEventListener('online', retry);
+    return;
+  }
+  sb.auth.onAuthStateChange((event, session) => {
+    if (event === 'PASSWORD_RECOVERY') {
+      cloud.recovery = true;
+      emit();
+    }
+    const u = session?.user || null;
+    if (u?.id !== cloud.user?.id) {
+      cloud.user = u;
+      if (u) setTimeout(() => afterLogin(), 0);
+      else {
+        readyForUser = null;
+        setStatus('off');
+      }
+    }
+  });
+  try {
+    const { data } = await sb.auth.getSession();
+    cloud.user = data.session?.user || null;
+  } catch (e) {
+    cloud.user = null;
+  }
+  // remove o ?code= que volta do link de e-mail
+  if (/[?&]code=/.test(location.search)) history.replaceState(null, '', location.pathname + location.hash);
+  cloud.ready = true;
+  if (cloud.user) await afterLogin();
+  else emit();
+
+  if (listenersOn) return;
+  listenersOn = true;
+  window.addEventListener('focus', () => pull());
+  document.addEventListener('visibilitychange', () => document.visibilityState === 'visible' && pull());
+  window.addEventListener('online', () => {
+    if (meta().dirty) schedulePush(0);
+    else pull();
+  });
+  setInterval(() => pull(), 60000);
+}
+
+// Conexão voltou depois de abrir sem internet: carrega o Supabase e sincroniza
+async function reconnect() {
+  readyForUser = null;
+  const offlineUser = cloud.user?.offline ? cloud.user : null;
+  try {
+    await client();
+  } catch (e) {
+    readyForUser = offlineUser?.id || null;
+    setTimeout(() => initCloud(), 0);
+    return;
+  }
+  if (offlineUser) cloud.user = null; // a sessão real vem do Supabase
+  await initCloud();
+}
+
+store.onPersist((state, origin) => {
+  if (origin === 'cloud' || !cloud.user || readyForUser !== cloud.user.id) return;
+  setMeta({ ...meta(), userId: cloud.user.id, dirty: true });
+  if (cloud.status === 'conflict') return;
+  if (!sb) return setStatus('offline', OFFLINE_MSG);
+  cloud.status = 'pending';
+  emit();
+  schedulePush();
+});
+
+function schedulePush(delay = PUSH_DELAY) {
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(push, delay);
+}
+
+// ---------- Depois do login ----------
+let loginInFlight = null;
+async function afterLogin() {
+  const user = cloud.user;
+  if (!user || readyForUser === user.id || loginInFlight === user.id) return;
+  loginInFlight = user.id;
+  try {
+    await firstSync(user);
+  } finally {
+    loginInFlight = null;
+  }
+}
+
+async function firstSync(user) {
+  setLocalOnly(false);
+  setStatus('syncing');
+  const m = meta();
+  const { data: row, error } = await q(sb.from('user_data').select('data, updated_at').eq('user_id', user.id).maybeSingle());
+  if (error) {
+    readyForUser = user.id; // segue funcionando localmente
+    setStatus(isNetwork(error) ? 'offline' : 'error', isNetwork(error) ? OFFLINE_MSG : error.message);
+    return;
+  }
+  readyForUser = user.id;
+  remoteExists = !!row;
+  const localHas = store.hasContent();
+
+  // dados locais são de outra conta: nunca enviar, só trocar pelos da nuvem
+  if (m.userId && m.userId !== user.id) {
+    if (row) return applyRemote(row);
+    store.reset({ origin: 'cloud' });
+    setMeta({ userId: user.id, last: null, dirty: false });
+    return setStatus('synced');
+  }
+  if (!row) {
+    // primeira vez desta conta: o que já existe neste navegador vai para a nuvem
+    if (localHas) return push();
+    setMeta({ userId: user.id, last: null, dirty: false });
+    return setStatus('synced');
+  }
+  if (!localHas) return applyRemote(row);
+  if (m.userId === user.id) {
+    if (!m.dirty) return applyRemote(row);
+    if (sameTime(row.updated_at, m.last)) return push(); // só este aparelho mudou
+    cloud.conflict = { remote: row, firstLogin: false };
+    return setStatus('conflict');
+  }
+  // navegador tinha dados sem conta e a conta já tem dados na nuvem
+  if (JSON.stringify(row.data) === JSON.stringify(store.get())) return applyRemote(row);
+  cloud.conflict = { remote: row, firstLogin: true };
+  setStatus('conflict');
+}
+
+function applyRemote(row) {
+  store.replaceAll(row.data || {}, { origin: 'cloud' });
+  setMeta({ userId: cloud.user.id, last: row.updated_at, dirty: false });
+  cloud.conflict = null;
+  setStatus('synced');
+}
+
+// ---------- Enviar ----------
+async function push() {
+  clearTimeout(pushTimer);
+  clearTimeout(retryTimer);
+  const user = cloud.user;
+  if (!user || !sb || cloud.status === 'conflict') return;
+  const m = meta();
+  const now = new Date().toISOString();
+  const data = store.get();
+  setStatus('saving');
+  let res;
+  if (!remoteExists) {
+    res = await q(sb.from('user_data').insert({ user_id: user.id, data, updated_at: now }).select('updated_at'));
+    if (res.error?.code === '23505') {
+      // outro aparelho criou antes
+      remoteExists = true;
+      return checkConflict();
+    }
+  } else {
+    let upd = sb.from('user_data').update({ data, updated_at: now }).eq('user_id', user.id);
+    if (m.last) upd = upd.eq('updated_at', m.last);
+    res = await q(upd.select('updated_at'));
+    if (!res.error && res.data && res.data.length === 0) return checkConflict();
+  }
+  if (res.error) {
+    const offline = isNetwork(res.error);
+    setStatus(offline ? 'offline' : 'error', offline ? OFFLINE_MSG : res.error.message);
+    retryTimer = setTimeout(push, 20000);
+    return;
+  }
+  remoteExists = true;
+  const saved = res.data?.[0]?.updated_at || now;
+  // se algo mudou enquanto enviava, manda de novo
+  const stillDirty = JSON.stringify(store.get()) !== JSON.stringify(data);
+  setMeta({ userId: user.id, last: saved, dirty: stillDirty });
+  setStatus(stillDirty ? 'pending' : 'synced');
+  if (stillDirty) schedulePush();
+}
+
+async function checkConflict() {
+  const { data: row, error } = await q(sb.from('user_data').select('data, updated_at').eq('user_id', cloud.user.id).maybeSingle());
+  if (error) {
+    setStatus(isNetwork(error) ? 'offline' : 'error', isNetwork(error) ? OFFLINE_MSG : error.message);
+    retryTimer = setTimeout(push, 20000);
+    return;
+  }
+  if (!row) {
+    remoteExists = false;
+    return push();
+  }
+  cloud.conflict = { remote: row, firstLogin: false };
+  setStatus('conflict');
+}
+
+// ---------- Buscar mudanças de outros aparelhos ----------
+async function pull() {
+  const user = cloud.user;
+  if (!user || !sb || readyForUser !== user.id) return;
+  if (['saving', 'conflict', 'syncing'].includes(cloud.status)) return;
+  const m = meta();
+  const { data: row, error } = await q(sb.from('user_data').select('updated_at').eq('user_id', user.id).maybeSingle());
+  if (error || !row) return;
+  if (sameTime(row.updated_at, m.last)) {
+    if (cloud.status === 'offline' || cloud.status === 'error') setStatus(m.dirty ? 'pending' : 'synced');
+    if (m.dirty) schedulePush(0);
+    return;
+  }
+  const full = await q(sb.from('user_data').select('data, updated_at').eq('user_id', user.id).maybeSingle());
+  if (full.error || !full.data) return;
+  if (m.dirty) {
+    cloud.conflict = { remote: full.data, firstLogin: false };
+    return setStatus('conflict');
+  }
+  applyRemote(full.data);
+}
+
+async function syncNow() {
+  if (meta().dirty) return push();
+  return pull();
+}
+
+// choice: 'cloud' (usar o que está na nuvem) | 'local' (usar o deste aparelho)
+async function resolveConflict(choice) {
+  const c = cloud.conflict;
+  if (!c) return;
+  if (choice === 'cloud') return applyRemote(c.remote);
+  remoteExists = true;
+  setMeta({ userId: cloud.user.id, last: c.remote.updated_at, dirty: true });
+  cloud.conflict = null;
+  cloud.status = 'pending';
+  return push();
+}
+
+// ---------- Conta ----------
+const MSG = {
+  'Invalid login credentials': 'E-mail ou senha incorretos.',
+  'Email not confirmed': 'Seu e-mail ainda não foi confirmado. Procure a mensagem de confirmação na sua caixa de entrada.',
+  'User already registered': 'Já existe uma conta com este e-mail. Use "Entrar".',
+  'Password should be at least 6 characters.': 'A senha precisa ter pelo menos 6 caracteres.',
+};
+const friendly = (e) => {
+  const m = e?.message || String(e);
+  if (MSG[m]) return MSG[m];
+  if (/rate limit|429/i.test(m)) return 'Muitas tentativas em pouco tempo. Espere alguns minutos e tente de novo.';
+  if (/fetch|network/i.test(m)) return 'Sem conexão com o servidor. Verifique a internet.';
+  if (/weak|pwned/i.test(m)) return 'Essa senha é fraca ou já apareceu em vazamentos. Escolha outra.';
+  return m;
+};
+
+async function signIn(email, password) {
+  await client();
+  const { error } = await sb.auth.signInWithPassword({ email, password });
+  if (error) throw new Error(friendly(error));
+}
+
+async function signUp(email, password) {
+  await client();
+  const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
+  if (error) throw new Error(friendly(error));
+  // com "Confirm email" ligado, não vem sessão: a pessoa precisa confirmar pelo e-mail
+  return { needsConfirmation: !data.session };
+}
+
+async function sendReset(email) {
+  await client();
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  if (error) throw new Error(friendly(error));
+}
+
+async function setNewPassword(password) {
+  const { error } = await sb.auth.updateUser({ password });
+  if (error) throw new Error(friendly(error));
+  cloud.recovery = false;
+  emit();
+}
+
+async function signOut({ keepLocal = false } = {}) {
+  if (meta().dirty && cloud.status !== 'conflict') {
+    try {
+      await push();
+    } catch (e) {
+      /* tenta, mas não bloqueia a saída */
+    }
+  }
+  try {
+    await sb?.auth.signOut();
+  } catch (e) {
+    /* ok */
+  }
+  readyForUser = null;
+  cloud.user = null;
+  cloud.conflict = null;
+  remoteExists = false;
+  if (!keepLocal) {
+    store.reset({ origin: 'cloud' });
+    setMeta({});
+  }
+  setStatus('off');
+}
+
+const pendingChanges = () => !!meta().dirty;
+
+return { cloudEnabled, cloud, onCloudChange, isLocalOnly, setLocalOnly, initCloud, pull, syncNow, resolveConflict, signIn, signUp, sendReset, setNewPassword, signOut, pendingChanges };
+})();
+
 // ===== js/views/home.js =====
 const __m_views_home = (() => {
 const { store } = __m_store;
@@ -4322,10 +4802,172 @@ function lattesText() {
 return { title, mount, render, lattesText };
 })();
 
+// ===== js/views/auth.js =====
+const __m_views_auth = (() => {
+// Telas de conta: entrar, criar conta, esqueci a senha e nova senha.
+const { esc } = __m_ui;
+const cloud = __m_cloud;
+
+const S = { mode: 'login', msg: '', err: '', busy: false, email: '' };
+const rerender = () => window.dispatchEvent(new Event('app:rerender'));
+
+const LOGO = `<svg viewBox="0 0 64 28" class="brand-mark big" aria-hidden="true"><circle cx="4" cy="22" r="3.2"/><path d="M10 22c4-16 8-16 11 0s7 16 11 0 7-16 11 0 7 12 10 4" fill="none" stroke-width="3.4" stroke-linecap="round"/></svg>`;
+
+function splash(text = 'Carregando…') {
+  return `<div class="welcome"><div class="welcome-card">${LOGO}<p class="splash-text">${esc(text)}</p></div></div>`;
+}
+
+function render(forced) {
+  const mode = forced || S.mode;
+  const titles = {
+    login: 'Entrar',
+    signup: 'Criar conta',
+    reset: 'Esqueci minha senha',
+    newpass: 'Criar nova senha',
+    confirm: 'Confirme seu e-mail',
+  };
+  let body = '';
+  if (mode === 'confirm') {
+    body = `<p class="auth-ok">Enviamos um link de confirmação para <b>${esc(S.email)}</b>. Abra o e-mail, clique no link e depois volte aqui para entrar.</p>
+      <button class="btn btn-primary full" data-auth-mode="login">Já confirmei, quero entrar</button>`;
+  } else if (mode === 'reset') {
+    body = `<form class="auth-form" data-auth="reset">
+        <p class="muted">Digite o e-mail da sua conta. Vamos enviar um link para criar uma nova senha.</p>
+        <label class="field"><span>E-mail</span><input name="email" type="email" autocomplete="email" required value="${esc(S.email)}" /></label>
+        <button class="btn btn-primary full" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Enviando…' : 'Enviar link'}</button>
+      </form>
+      <button class="link-inline" data-auth-mode="login">Voltar para entrar</button>`;
+  } else if (mode === 'newpass') {
+    body = `<form class="auth-form" data-auth="newpass">
+        <label class="field"><span>Nova senha</span><input name="password" type="password" autocomplete="new-password" minlength="6" required /></label>
+        <button class="btn btn-primary full" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Salvando…' : 'Salvar nova senha'}</button>
+      </form>`;
+  } else {
+    const signup = mode === 'signup';
+    body = `<div class="auth-tabs" role="tablist">
+        <button role="tab" class="${!signup ? 'on' : ''}" data-auth-mode="login" aria-selected="${!signup}">Entrar</button>
+        <button role="tab" class="${signup ? 'on' : ''}" data-auth-mode="signup" aria-selected="${signup}">Criar conta</button>
+      </div>
+      <form class="auth-form" data-auth="${mode}">
+        <label class="field"><span>E-mail</span><input name="email" type="email" autocomplete="email" required value="${esc(S.email)}" /></label>
+        <label class="field"><span>Senha${signup ? ' (mínimo 6 caracteres)' : ''}</span><input name="password" type="password" autocomplete="${signup ? 'new-password' : 'current-password'}" minlength="6" required /></label>
+        <button class="btn btn-primary full lg" type="submit" ${S.busy ? 'disabled' : ''}>${S.busy ? 'Aguarde…' : signup ? 'Criar minha conta' : 'Entrar'}</button>
+      </form>
+      ${!signup ? '<button class="link-inline" data-auth-mode="reset">Esqueci minha senha</button>' : '<p class="small muted">Seus dados ficam guardados na sua conta e aparecem no computador e no celular.</p>'}`;
+  }
+  return `<div class="welcome auth">
+    <div class="welcome-card">
+      ${LOGO}
+      <h1>Minha Pesquisa</h1>
+      <div class="auth-card">
+        <h2>${titles[mode]}</h2>
+        ${S.err ? `<p class="auth-err" role="alert">${esc(S.err)}</p>` : ''}
+        ${S.msg ? `<p class="auth-ok" role="status">${esc(S.msg)}</p>` : ''}
+        ${body}
+      </div>
+      ${mode === 'newpass' ? '' : '<button class="link-light" data-auth-local>Continuar sem conta (dados só neste navegador)</button>'}
+    </div>
+  </div>`;
+}
+
+function mount() {
+  const root = document.querySelector('.auth');
+  if (!root) return null;
+  root.addEventListener('click', (e) => {
+    const m = e.target.closest('[data-auth-mode]');
+    if (m) {
+      const email = root.querySelector('input[name="email"]')?.value;
+      if (email) S.email = email;
+      Object.assign(S, { mode: m.dataset.authMode, err: '', msg: '' });
+      rerender();
+      return;
+    }
+    if (e.target.closest('[data-auth-local]')) cloud.setLocalOnly(true);
+  });
+  root.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const f = e.target;
+    const kind = f.dataset.auth;
+    const email = f.email?.value.trim();
+    const password = f.password?.value;
+    if (email) S.email = email;
+    Object.assign(S, { busy: true, err: '', msg: '' });
+    rerender();
+    try {
+      if (kind === 'login') await cloud.signIn(email, password);
+      if (kind === 'signup') {
+        const r = await cloud.signUp(email, password);
+        if (r.needsConfirmation) S.mode = 'confirm';
+      }
+      if (kind === 'reset') {
+        await cloud.sendReset(email);
+        S.msg = 'Se existir uma conta com este e-mail, o link chega em alguns minutos. Confira também o spam.';
+      }
+      if (kind === 'newpass') {
+        await cloud.setNewPassword(password);
+        S.mode = 'login';
+      }
+    } catch (err) {
+      S.err = err.message;
+    }
+    S.busy = false;
+    rerender();
+    setTimeout(() => document.querySelector('.auth input[name="password"]')?.focus(), 0);
+  });
+  setTimeout(() => {
+    const first = root.querySelector('input:not([value]), input[value=""]') || root.querySelector('input');
+    first?.focus();
+  }, 0);
+  return null;
+}
+
+// Indicador de sincronização na barra do topo
+function syncBadge(c) {
+  const map = {
+    synced: ['ok', 'Salvo na nuvem'],
+    pending: ['wait', 'Salvando…'],
+    saving: ['wait', 'Salvando…'],
+    syncing: ['wait', 'Sincronizando…'],
+    offline: ['off', 'Sem internet: salvo neste aparelho'],
+    error: ['bad', 'Erro ao sincronizar'],
+    conflict: ['bad', 'Precisa da sua decisão'],
+  };
+  const [tone, text] = map[c.status] || ['', ''];
+  if (!tone) return '';
+  return `<a href="#/config" class="sync sync-${tone}" title="${esc(c.error || text)}"><span class="sync-dot"></span><span class="sync-text">${text}</span></a>`;
+}
+
+function conflictDialog(c) {
+  if (!c.conflict) return '';
+  const when = new Date(c.conflict.remote.updated_at).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' });
+  const first = c.conflict.firstLogin;
+  return `<div class="modal-backdrop conflict" role="alertdialog" aria-modal="true" aria-labelledby="cf-t">
+    <div class="modal modal-sm">
+      <h2 id="cf-t">${first ? 'Sua conta já tem dados' : 'Alterações em dois aparelhos'}</h2>
+      <p class="confirm-text">${
+        first
+          ? `Este navegador tem dados que não estão na sua conta, e a sua conta já tem dados salvos (última alteração em ${when}). Qual versão você quer manter?`
+          : `Você mudou coisas neste aparelho, e outro aparelho também salvou alterações (em ${when}). Qual versão você quer manter?`
+      }</p>
+      <div class="cf-actions">
+        <button class="btn btn-primary" data-conflict="cloud">Usar a da nuvem${first ? ' (da minha conta)' : ''}</button>
+        <button class="btn btn-ghost" data-conflict="local">Usar a deste aparelho</button>
+      </div>
+      <p class="small muted">A versão não escolhida é substituída. Se quiser guardar as duas, antes faça um backup em Configurações.</p>
+      <button class="link-inline" data-conflict="backup">Baixar backup deste aparelho antes</button>
+    </div>
+  </div>`;
+}
+
+return { splash, render, mount, syncBadge, conflictDialog };
+})();
+
 // ===== js/views/settings.js =====
 const __m_views_settings = (() => {
 const { store } = __m_store;
-const { icon } = __m_ui;
+const { icon, esc } = __m_ui;
+const { cloud, cloudEnabled } = __m_cloud;
+const { syncBadge } = __m_views_auth;
 
 const title = 'Configurações';
 
@@ -4337,10 +4979,32 @@ function render() {
   );
   return `<div class="page narrow">
     <header class="page-head"><div><p class="eyebrow dark">Configurações</p><h1>Seus dados</h1></div></header>
+    ${
+      cloudEnabled
+        ? cloud.user
+          ? `<section class="card setting account">
+      <div><h3>${icon('users')} Sua conta</h3>
+      <p><b>${esc(cloud.user.email)}</b></p>
+      <p class="muted">Seus dados ficam guardados na nuvem e aparecem em qualquer aparelho em que você entrar com este e-mail.</p>
+      <p class="sync-line">Situação: <span data-sync-status>${syncBadge(cloud) || 'Desconectado'}</span></p>
+      ${cloud.error && cloud.status !== 'synced' ? `<p class="small muted">${esc(cloud.error)}</p>` : ''}
+      </div>
+      <div class="account-actions">
+        <button class="btn btn-ghost" data-action="sync-now">Sincronizar agora</button>
+        <button class="btn btn-ghost" data-action="logout">Sair da conta</button>
+      </div>
+    </section>`
+          : `<section class="card setting account">
+      <div><h3>${icon('users')} Você está sem conta</h3>
+      <p class="muted">Seus dados estão só neste navegador. Crie uma conta para guardá-los na nuvem e usar no celular e no computador. O que já está aqui vai junto para a conta.</p></div>
+      <button class="btn btn-primary" data-action="go-login">Entrar ou criar conta</button>
+    </section>`
+        : ''
+    }
 
     <section class="card setting">
       <div><h3>${icon('download')} Fazer backup</h3>
-      <p class="muted">Seus dados ficam salvos só neste navegador (${total} registros). Baixe um backup de vez em quando, principalmente antes de trocar de computador.</p></div>
+      <p class="muted">${cloud.user ? `Você tem ${total} registros na sua conta. Um backup em arquivo é uma cópia extra, guardada por você.` : `Seus dados ficam salvos só neste navegador (${total} registros). Baixe um backup de vez em quando, principalmente antes de trocar de computador.`}</p></div>
       <button class="btn btn-primary" data-action="export">Baixar backup (.json)</button>
     </section>
 
@@ -4370,7 +5034,7 @@ function render() {
 
     <section class="card setting danger-zone">
       <div><h3>${icon('trash')} Apagar tudo</h3>
-      <p class="muted">Remove todos os dados deste navegador. Não dá para desfazer sem um backup.</p></div>
+      <p class="muted">${cloud.user ? 'Remove todos os dados da sua conta, na nuvem e em todos os aparelhos.' : 'Remove todos os dados deste navegador.'} Não dá para desfazer sem um backup.</p></div>
       <button class="btn btn-danger" data-action="reset">Apagar dados</button>
     </section>
   </div>`;
@@ -4405,6 +5069,8 @@ const timeline = __m_views_timeline;
 const academic = __m_views_academic;
 const archive = __m_views_archive;
 const settings = __m_views_settings;
+const auth = __m_views_auth;
+const { cloud, cloudEnabled, initCloud, onCloudChange, isLocalOnly, setLocalOnly, resolveConflict, syncNow, signOut, pendingChanges } = __m_cloud;
 
 const ROUTES = {
   inicio: { view: home, label: 'Visão geral', icon: 'home' },
@@ -4446,6 +5112,7 @@ function shell(name, content) {
     <nav class="nav" aria-label="Principal">
       ${links.map(([k, r]) => `<a href="#/${k}" class="nav-link ${k === name ? 'active' : ''}" ${k === name ? 'aria-current="page"' : ''}>${r.label}</a>`).join('')}
     </nav>
+    <span id="sync-slot">${cloudEnabled && cloud.user ? auth.syncBadge(cloud) : ''}</span>
     <a href="#/config" class="avatar" title="${esc(p?.name || '')} · Configurações" aria-label="Configurações">${esc(initials(p?.name))}</a>
   </header>
   <main id="main">${content}</main>
@@ -4468,7 +5135,12 @@ function welcome() {
         <button class="btn btn-primary lg" data-action="start">Começar meu projeto</button>
         <button class="btn btn-ghost-light lg" data-action="demo-start">Explorar com exemplo</button>
       </div>
-      <small>Seus dados ficam salvos neste navegador. Você pode fazer backup a qualquer momento.</small>
+      <small>${
+        cloud.user
+          ? `Conectado como ${esc(cloud.user.email)}. Seus dados ficam salvos na sua conta.`
+          : 'Seus dados ficam salvos neste navegador. Você pode fazer backup a qualquer momento.'
+      }</small>
+      ${cloud.user ? '<button class="link-light" data-action="logout">Sair da conta</button>' : ''}
     </div>
   </div>`;
 }
@@ -4485,6 +5157,29 @@ function render() {
     cleanup = null;
   }
   const s = store.get();
+  document.querySelectorAll('.modal-backdrop.conflict').forEach((m) => m.remove());
+  if (cloudEnabled) {
+    if (!cloud.ready) {
+      app.innerHTML = auth.splash();
+      return;
+    }
+    if (cloud.recovery) {
+      app.innerHTML = auth.render('newpass');
+      cleanup = auth.mount();
+      return;
+    }
+    if (!cloud.user && !isLocalOnly()) {
+      app.innerHTML = auth.render();
+      cleanup = auth.mount();
+      document.title = 'Entrar · Minha Pesquisa';
+      return;
+    }
+    if (cloud.user && cloud.status === 'syncing' && !s.profile) {
+      app.innerHTML = auth.splash('Carregando seus dados…');
+      return;
+    }
+    if (cloud.conflict) document.body.insertAdjacentHTML('beforeend', auth.conflictDialog(cloud));
+  }
   if (!s.profile) {
     app.innerHTML = welcome();
     document.title = 'Minha Pesquisa';
@@ -4650,6 +5345,23 @@ const actions = {
     }
   },
   lattes: showLattes,
+  'sync-now': async () => {
+    await syncNow();
+    toast(cloud.status === 'synced' ? 'Tudo sincronizado' : 'Sincronizando…');
+  },
+  logout: () =>
+    confirmDialog(
+      pendingChanges()
+        ? 'Atenção: há alterações deste aparelho que ainda não foram para a nuvem (sem internet). Se sair agora, elas serão perdidas. Sair mesmo assim?'
+        : 'Sair da conta? Seus dados continuam guardados na nuvem e este navegador será limpo.',
+      async () => {
+        await signOut();
+        location.hash = '';
+        toast('Você saiu da conta');
+      },
+      'Sair'
+    ),
+  'go-login': () => setLocalOnly(false),
   export: () => {
     download(`minha-pesquisa-backup-${todayISO()}.json`, JSON.stringify(store.get(), null, 2));
     toast('Backup baixado');
@@ -4660,7 +5372,7 @@ const actions = {
       location.hash = '#/inicio';
     }, 'Carregar exemplo'),
   reset: () =>
-    confirmDialog('Apagar todos os dados deste navegador?', () => {
+    confirmDialog(cloud.user ? 'Apagar TODOS os dados da sua conta? Isso apaga na nuvem e em todos os aparelhos.' : 'Apagar todos os dados deste navegador?', () => {
       store.reset();
       location.hash = '';
     }, 'Apagar'),
@@ -4711,12 +5423,44 @@ document.addEventListener('keydown', (e) => {
 
 window.addEventListener('app:rerender', () => render());
 
+// Mudanças da nuvem: redesenha a tela só quando muda algo estrutural (login, conflito);
+// para "salvando/salvo" atualiza apenas o indicador, sem atrapalhar o que está sendo editado.
+let cloudKey = '';
+const keyOf = () => [cloud.ready, cloud.user?.id, cloud.recovery, !!cloud.conflict, isLocalOnly(), cloud.status === 'syncing'].join('|');
+onCloudChange(() => {
+  const k = keyOf();
+  if (k !== cloudKey) {
+    cloudKey = k;
+    render();
+  } else {
+    const slot = document.getElementById('sync-slot');
+    if (slot) slot.innerHTML = cloud.user ? auth.syncBadge(cloud) : '';
+    const st = document.querySelector('[data-sync-status]');
+    if (st) st.innerHTML = auth.syncBadge(cloud) || 'Desconectado';
+  }
+});
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-conflict]');
+  if (!b) return;
+  if (b.dataset.conflict === 'backup') {
+    download(`minha-pesquisa-backup-${todayISO()}.json`, JSON.stringify(store.get(), null, 2));
+    return;
+  }
+  resolveConflict(b.dataset.conflict);
+  toast(b.dataset.conflict === 'cloud' ? 'Usando os dados da nuvem' : 'Enviando os dados deste aparelho para a nuvem');
+});
+
 window.addEventListener('hashchange', () => {
   closeModal();
   render();
 });
 store.subscribe(render);
 render();
+initCloud().then(() => {
+  cloudKey = keyOf();
+  render();
+});
 
 return {  };
 })();

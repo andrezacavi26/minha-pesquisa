@@ -50,9 +50,20 @@ Depois é só abrir http://localhost:8000.
 2. Na Vercel, clique em **Add New → Project**, importe o repositório e escolha **Framework Preset: Other**. Não precisa de build command nem de output directory.
 3. Clique em **Deploy**. A cada `git push`, a Vercel publica a nova versão sozinha.
 
+## Conta e sincronização (Supabase)
+
+- Projeto Supabase: `minha-pesquisa` (região São Paulo). URL e chave publicável em `src/js/config.js`.
+- Tabela `user_data`: um documento JSON por pessoa, protegido por Row Level Security
+  (cada conta só lê e grava os próprios dados). SQL em `supabase/migrations/001_user_data.sql`.
+- O navegador guarda uma cópia local: funciona sem internet e envia as mudanças quando a conexão volta.
+- Se dois aparelhos alterarem ao mesmo tempo, o sistema pergunta qual versão manter (nunca sobrescreve em silêncio).
+- Configurações necessárias no painel do Supabase:
+  - Authentication → Sign In / Providers → Email → **Confirm email desligado** (enquanto não houver SMTP próprio).
+  - Authentication → URL Configuration → **Site URL** `https://minha-pesquisa.vercel.app`.
+- Para "esqueci minha senha" funcionar para qualquer e-mail, configure um SMTP próprio (por exemplo, Resend).
+
 ## Próximos passos (fase 2)
 
-- Login e sincronização entre dispositivos (Supabase: Auth + Postgres)
 - Visão do orientador acompanhando vários alunos
 - Anexos (certificados em PDF, banners) no Storage
 - Lembretes por e-mail de prazos

@@ -29,6 +29,7 @@ function empty() {
 
 let state = load();
 const listeners = new Set();
+const persistHooks = new Set(); // chamados em todo salvamento (inclusive silencioso): usado pela sincronização
 
 function load() {
   try {
@@ -43,12 +44,14 @@ function load() {
   }
 }
 
-function persist(silent = false) {
+// origin: 'local' (mudança feita aqui) ou 'cloud' (veio da nuvem, não precisa reenviar)
+function persist(silent = false, origin = 'local') {
   try {
     localStorage.setItem(KEY, JSON.stringify(state));
   } catch (e) {
     console.warn('Não foi possível salvar', e);
   }
+  persistHooks.forEach((fn) => fn(state, origin));
   if (!silent) listeners.forEach((fn) => fn(state));
 }
 
@@ -62,6 +65,10 @@ export const store = {
   subscribe(fn) {
     listeners.add(fn);
     return () => listeners.delete(fn);
+  },
+  onPersist(fn) {
+    persistHooks.add(fn);
+    return () => persistHooks.delete(fn);
   },
   setProfile(profile) {
     state.profile = { ...(state.profile || {}), ...profile };
@@ -86,12 +93,15 @@ export const store = {
     state[col] = state[col].filter((x) => x.id !== id);
     persist();
   },
-  replaceAll(next) {
+  replaceAll(next, { origin = 'local' } = {}) {
     state = { ...empty(), ...next };
-    persist();
+    persist(false, origin);
   },
-  reset() {
+  reset({ origin = 'local' } = {}) {
     state = empty();
-    persist();
+    persist(false, origin);
+  },
+  hasContent() {
+    return !!state.profile || COLLECTIONS.some((c) => (state[c] || []).length);
   },
 };

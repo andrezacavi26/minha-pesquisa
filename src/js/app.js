@@ -9,6 +9,8 @@ import * as timeline from './views/timeline.js';
 import * as academic from './views/academic.js';
 import * as archive from './views/archive.js';
 import * as settings from './views/settings.js';
+import * as auth from './views/auth.js';
+import { cloud, cloudEnabled, initCloud, onCloudChange, isLocalOnly, setLocalOnly, resolveConflict, syncNow, signOut, pendingChanges } from './cloud.js';
 
 const ROUTES = {
   inicio: { view: home, label: 'Visão geral', icon: 'home' },
@@ -50,6 +52,7 @@ function shell(name, content) {
     <nav class="nav" aria-label="Principal">
       ${links.map(([k, r]) => `<a href="#/${k}" class="nav-link ${k === name ? 'active' : ''}" ${k === name ? 'aria-current="page"' : ''}>${r.label}</a>`).join('')}
     </nav>
+    <span id="sync-slot">${cloudEnabled && cloud.user ? auth.syncBadge(cloud) : ''}</span>
     <a href="#/config" class="avatar" title="${esc(p?.name || '')} · Configurações" aria-label="Configurações">${esc(initials(p?.name))}</a>
   </header>
   <main id="main">${content}</main>
@@ -72,7 +75,12 @@ function welcome() {
         <button class="btn btn-primary lg" data-action="start">Começar meu projeto</button>
         <button class="btn btn-ghost-light lg" data-action="demo-start">Explorar com exemplo</button>
       </div>
-      <small>Seus dados ficam salvos neste navegador. Você pode fazer backup a qualquer momento.</small>
+      <small>${
+        cloud.user
+          ? `Conectado como ${esc(cloud.user.email)}. Seus dados ficam salvos na sua conta.`
+          : 'Seus dados ficam salvos neste navegador. Você pode fazer backup a qualquer momento.'
+      }</small>
+      ${cloud.user ? '<button class="link-light" data-action="logout">Sair da conta</button>' : ''}
     </div>
   </div>`;
 }
@@ -89,6 +97,29 @@ function render() {
     cleanup = null;
   }
   const s = store.get();
+  document.querySelectorAll('.modal-backdrop.conflict').forEach((m) => m.remove());
+  if (cloudEnabled) {
+    if (!cloud.ready) {
+      app.innerHTML = auth.splash();
+      return;
+    }
+    if (cloud.recovery) {
+      app.innerHTML = auth.render('newpass');
+      cleanup = auth.mount();
+      return;
+    }
+    if (!cloud.user && !isLocalOnly()) {
+      app.innerHTML = auth.render();
+      cleanup = auth.mount();
+      document.title = 'Entrar · Minha Pesquisa';
+      return;
+    }
+    if (cloud.user && cloud.status === 'syncing' && !s.profile) {
+      app.innerHTML = auth.splash('Carregando seus dados…');
+      return;
+    }
+    if (cloud.conflict) document.body.insertAdjacentHTML('beforeend', auth.conflictDialog(cloud));
+  }
   if (!s.profile) {
     app.innerHTML = welcome();
     document.title = 'Minha Pesquisa';
@@ -254,6 +285,23 @@ const actions = {
     }
   },
   lattes: showLattes,
+  'sync-now': async () => {
+    await syncNow();
+    toast(cloud.status === 'synced' ? 'Tudo sincronizado' : 'Sincronizando…');
+  },
+  logout: () =>
+    confirmDialog(
+      pendingChanges()
+        ? 'Atenção: há alterações deste aparelho que ainda não foram para a nuvem (sem internet). Se sair agora, elas serão perdidas. Sair mesmo assim?'
+        : 'Sair da conta? Seus dados continuam guardados na nuvem e este navegador será limpo.',
+      async () => {
+        await signOut();
+        location.hash = '';
+        toast('Você saiu da conta');
+      },
+      'Sair'
+    ),
+  'go-login': () => setLocalOnly(false),
   export: () => {
     download(`minha-pesquisa-backup-${todayISO()}.json`, JSON.stringify(store.get(), null, 2));
     toast('Backup baixado');
@@ -264,7 +312,7 @@ const actions = {
       location.hash = '#/inicio';
     }, 'Carregar exemplo'),
   reset: () =>
-    confirmDialog('Apagar todos os dados deste navegador?', () => {
+    confirmDialog(cloud.user ? 'Apagar TODOS os dados da sua conta? Isso apaga na nuvem e em todos os aparelhos.' : 'Apagar todos os dados deste navegador?', () => {
       store.reset();
       location.hash = '';
     }, 'Apagar'),
@@ -315,9 +363,41 @@ document.addEventListener('keydown', (e) => {
 
 window.addEventListener('app:rerender', () => render());
 
+// Mudanças da nuvem: redesenha a tela só quando muda algo estrutural (login, conflito);
+// para "salvando/salvo" atualiza apenas o indicador, sem atrapalhar o que está sendo editado.
+let cloudKey = '';
+const keyOf = () => [cloud.ready, cloud.user?.id, cloud.recovery, !!cloud.conflict, isLocalOnly(), cloud.status === 'syncing'].join('|');
+onCloudChange(() => {
+  const k = keyOf();
+  if (k !== cloudKey) {
+    cloudKey = k;
+    render();
+  } else {
+    const slot = document.getElementById('sync-slot');
+    if (slot) slot.innerHTML = cloud.user ? auth.syncBadge(cloud) : '';
+    const st = document.querySelector('[data-sync-status]');
+    if (st) st.innerHTML = auth.syncBadge(cloud) || 'Desconectado';
+  }
+});
+
+document.addEventListener('click', (e) => {
+  const b = e.target.closest('[data-conflict]');
+  if (!b) return;
+  if (b.dataset.conflict === 'backup') {
+    download(`minha-pesquisa-backup-${todayISO()}.json`, JSON.stringify(store.get(), null, 2));
+    return;
+  }
+  resolveConflict(b.dataset.conflict);
+  toast(b.dataset.conflict === 'cloud' ? 'Usando os dados da nuvem' : 'Enviando os dados deste aparelho para a nuvem');
+});
+
 window.addEventListener('hashchange', () => {
   closeModal();
   render();
 });
 store.subscribe(render);
 render();
+initCloud().then(() => {
+  cloudKey = keyOf();
+  render();
+});
