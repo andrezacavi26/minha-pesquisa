@@ -9,7 +9,7 @@ const CROSSREF = 'https://api.crossref.org/';
 const OPENALEX = 'https://api.openalex.org/';
 let openalexKey = '';
 export const setOpenAlexKey = (k) => (openalexKey = String(k || '').trim());
-const SEL = 'DOI,title,author,container-title,short-container-title,issued,abstract,volume,issue,page,URL,type';
+const SEL = 'DOI,title,subtitle,author,container-title,short-container-title,issued,abstract,volume,issue,page,URL,type';
 
 async function get(url, as = 'json') {
   const ctrl = new AbortController();
@@ -108,6 +108,14 @@ export async function pubmedAbstract(pmid) {
 }
 
 // ---------- SciELO via Crossref ----------
+// Título + subtítulo (o Crossref e o OpenAlex às vezes cortam o título no ":")
+function joinSubtitle(title, sub) {
+  title = String(title || '').replace(/\s+/g, ' ').trim();
+  sub = String(sub || '').replace(/\s+/g, ' ').trim();
+  if (!sub || title.toLowerCase().includes(sub.toLowerCase())) return title.replace(/\s*:$/, '');
+  return `${title.replace(/\s*:$/, '')}: ${sub}`;
+}
+
 function fromCrossref(it) {
   const dp = it.issued?.['date-parts']?.[0] || [];
   const doi = it.DOI || '';
@@ -116,7 +124,7 @@ function fromCrossref(it) {
     pmid: '',
     doi,
     pmcid: '',
-    title: clean((it.title || [])[0] || '').replace(/\s+/g, ' '),
+    title: joinSubtitle(clean((it.title || [])[0] || ''), clean((it.subtitle || [])[0] || '')),
     authors: (it.author || [])
       .map((a) => (a.family ? `${a.family}${a.given ? ', ' + a.given : ''}` : a.name || ''))
       .filter(Boolean)
@@ -237,7 +245,7 @@ export async function enrichFromCrossref(a) {
       volume: c.volume || a.volume,
       issue: c.issue || a.issue,
       pages: c.pages || a.pages,
-      title: a.title || c.title,
+      title: c.title && c.title.length > (a.title || '').length ? c.title : (a.title || '').replace(/\s*:$/, ''),
       abstract: a.abstract || c.abstract,
     };
   } catch (e) {
