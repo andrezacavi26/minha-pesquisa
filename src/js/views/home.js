@@ -11,7 +11,7 @@ export function hero(p) {
   return `<section class="hero">
     <div class="hero-inner">
       <div class="hero-text">
-        <p class="eyebrow">${esc(p.program || level)}</p>
+        <p class="eyebrow">${[p.program || level, p.institution].filter(Boolean).map(esc).join(' · ')}</p>
         <h1>${esc(p.project)}</h1>
         <div class="hero-meta">
           ${p.advisor ? `<span>${icon('users')} ${esc(p.advisor)}</span>` : ''}
@@ -127,9 +127,16 @@ export function render() {
       <section class="col">
         <header class="col-head"><h2>Vida acadêmica</h2><a href="#/vida-academica" class="mini-link">Abrir ${icon('arrow')}</a></header>
         <div class="card soft">
-          <div class="pace-row"><span>Créditos</span><b>${cr.done}${cr.req ? ` / ${cr.req}` : ''}</b></div>
-          ${progressBar(cr.pct)}
-          ${cr.ongoing ? `<small class="muted">+ ${cr.ongoing} em curso</small>` : ''}
+          ${
+            cr.split
+              ? `<div class="pace-row"><span>Obrigatórias</span><b>${cr.mand.done}${cr.mand.req ? ` / ${cr.mand.req}` : ''}</b></div>
+                 ${progressBar(cr.mand.pct)}
+                 <div class="pace-row"><span>Optativas</span><b>${cr.elec.done}${cr.elec.req ? ` / ${cr.elec.req}` : ''}</b></div>
+                 ${progressBar(cr.elec.pct)}`
+              : `<div class="pace-row"><span>Créditos</span><b>${cr.total.done}${cr.total.req ? ` / ${cr.total.req}` : ''}</b></div>
+                 ${progressBar(cr.total.pct)}`
+          }
+          ${cr.total.ongoing ? `<small class="muted">+ ${cr.total.ongoing} em curso</small>` : ''}
         </div>
         <h3 class="sub">Disciplinas</h3>
         <ul class="tile-list">

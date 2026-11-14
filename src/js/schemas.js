@@ -126,6 +126,15 @@ export const SCHEMAS = {
     label: 'disciplina',
     fields: () => [
       { name: 'name', label: 'Disciplina', required: true, full: true },
+      {
+        name: 'type',
+        label: 'Tipo',
+        type: 'select',
+        options: [
+          ['obrigatoria', 'Obrigatória'],
+          ['optativa', 'Optativa'],
+        ],
+      },
       { name: 'credits', label: 'Créditos', type: 'number', required: true },
       { name: 'term', label: 'Semestre', placeholder: '2026/1' },
       {
@@ -204,13 +213,16 @@ export const SCHEMAS = {
 export const PROFILE_FIELDS = [
   { name: 'name', label: 'Seu nome', required: true },
   { name: 'level', label: 'Nível', type: 'select', options: LEVELS },
-  { name: 'program', label: 'Programa / curso', placeholder: 'Ex.: Doutorado em Patologia', full: true },
+  { name: 'institution', label: 'Instituição (universidade / faculdade)', placeholder: 'Ex.: Universidade Federal de Minas Gerais (UFMG)', full: true },
+  { name: 'campus', label: 'Campus / unidade', placeholder: 'Ex.: Campus Pampulha, Faculdade de Medicina' },
+  { name: 'program', label: 'Programa / curso', placeholder: 'Ex.: Doutorado em Patologia' },
   { name: 'project', label: 'Título curto do projeto', required: true, full: true, placeholder: 'Ex.: Estresse e barreira intestinal' },
   { name: 'advisor', label: 'Orientador(a)' },
   { name: 'coadvisor', label: 'Coorientador(a)' },
   { name: 'start', label: 'Ingresso', type: 'date', required: true },
   { name: 'end', label: 'Previsão de defesa / conclusão', type: 'date', required: true },
-  { name: 'requiredCredits', label: 'Créditos exigidos', type: 'number' },
+  { name: 'requiredMandatory', label: 'Créditos exigidos em obrigatórias', type: 'number' },
+  { name: 'requiredElective', label: 'Créditos exigidos em optativas', type: 'number' },
   { name: 'scholarship', label: 'Bolsa (agência)', placeholder: 'CAPES, CNPq, FAPESP…' },
   { name: 'scholarshipEnd', label: 'Fim da bolsa', type: 'date' },
 ];

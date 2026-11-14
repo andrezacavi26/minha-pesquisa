@@ -51,17 +51,33 @@ export function pace(profile) {
   return { t, p, tone: 'bad', text: 'Bem atrás do tempo do curso. Leve isso para a próxima reunião.' };
 }
 
+// Créditos separados por tipo. Disciplina sem tipo conta como obrigatória.
+export const courseType = (c) => (c.type === 'optativa' ? 'optativa' : 'obrigatoria');
+
 export function credits(profile) {
-  const done = store
-    .list('courses')
-    .filter((c) => c.status === 'concluida')
-    .reduce((a, c) => a + (Number(c.credits) || 0), 0);
-  const ongoing = store
-    .list('courses')
-    .filter((c) => c.status === 'cursando')
-    .reduce((a, c) => a + (Number(c.credits) || 0), 0);
-  const req = Number(profile?.requiredCredits) || 0;
-  return { done, ongoing, req, pct: req ? (done / req) * 100 : 0 };
+  const sum = (type, status) =>
+    store
+      .list('courses')
+      .filter((c) => (!type || courseType(c) === type) && c.status === status)
+      .reduce((a, c) => a + (Number(c.credits) || 0), 0);
+  const part = (type, req) => {
+    const done = sum(type, 'concluida');
+    const ongoing = sum(type, 'cursando');
+    req = Number(req) || 0;
+    return { done, ongoing, req, pct: req ? (done / req) * 100 : 0, missing: Math.max(0, req - done) };
+  };
+  const mand = part('obrigatoria', profile?.requiredMandatory);
+  const elec = part('optativa', profile?.requiredElective);
+  // compatibilidade com a versão antiga, que tinha só "créditos exigidos"
+  const totalReq = mand.req + elec.req || Number(profile?.requiredCredits) || 0;
+  const total = part(null, totalReq);
+  // no total, o que passa do exigido em um tipo não cobre o outro
+  if (mand.req || elec.req) {
+    const counted = Math.min(mand.done, mand.req) + Math.min(elec.done, elec.req);
+    total.pct = totalReq ? (counted / totalReq) * 100 : 0;
+    total.missing = mand.missing + elec.missing;
+  }
+  return { mand, elec, total, split: !!(mand.req || elec.req) };
 }
 
 // Agenda unificada: tudo que tem data e ainda não foi resolvido.

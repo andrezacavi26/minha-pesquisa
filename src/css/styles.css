@@ -380,6 +380,15 @@ a.tile:hover, .tile.ghost:hover { border-color: #a6e5cf; }
 .table tr:last-child td { border-bottom: 0; }
 .table a { color: var(--ink); }
 .credits-card { max-width: 520px; }
+.credits-split { max-width: none; display: grid; grid-template-columns: 1fr 1fr auto; gap: 24px; align-items: center; }
+.credit-block .bar { margin: 6px 0 4px; }
+.credit-total { display: flex; flex-direction: column; align-items: flex-end; padding-left: 24px; border-left: 1px solid #c9efe0; min-width: 130px; }
+.credit-total span { font-size: 14px; color: var(--ink-2); }
+.credit-total b { font-size: 26px; line-height: 1.1; }
+.pill.type-obrigatoria { background: #e4edf7; color: #2d4f7a; }
+.pill.type-optativa { background: #f1e9fb; color: #5f3c8c; }
+.link-inline { background: none; border: 0; padding: 0; color: var(--mint-ink); font-weight: 600; text-decoration: underline; }
+@media (max-width: 700px) { .credits-split { grid-template-columns: 1fr; } .credit-total { align-items: flex-start; padding-left: 0; border-left: 0; } }
 
 /* ---------- Acervo ---------- */
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 22px; border-bottom: 1px solid var(--line); }

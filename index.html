@@ -393,6 +393,15 @@ a.tile:hover, .tile.ghost:hover { border-color: #a6e5cf; }
 .table tr:last-child td { border-bottom: 0; }
 .table a { color: var(--ink); }
 .credits-card { max-width: 520px; }
+.credits-split { max-width: none; display: grid; grid-template-columns: 1fr 1fr auto; gap: 24px; align-items: center; }
+.credit-block .bar { margin: 6px 0 4px; }
+.credit-total { display: flex; flex-direction: column; align-items: flex-end; padding-left: 24px; border-left: 1px solid #c9efe0; min-width: 130px; }
+.credit-total span { font-size: 14px; color: var(--ink-2); }
+.credit-total b { font-size: 26px; line-height: 1.1; }
+.pill.type-obrigatoria { background: #e4edf7; color: #2d4f7a; }
+.pill.type-optativa { background: #f1e9fb; color: #5f3c8c; }
+.link-inline { background: none; border: 0; padding: 0; color: var(--mint-ink); font-weight: 600; text-decoration: underline; }
+@media (max-width: 700px) { .credits-split { grid-template-columns: 1fr; } .credit-total { align-items: flex-start; padding-left: 0; border-left: 0; } }
 
 /* ---------- Acervo ---------- */
 .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 22px; border-bottom: 1px solid var(--line); }
@@ -1005,6 +1014,15 @@ const SCHEMAS = {
     label: 'disciplina',
     fields: () => [
       { name: 'name', label: 'Disciplina', required: true, full: true },
+      {
+        name: 'type',
+        label: 'Tipo',
+        type: 'select',
+        options: [
+          ['obrigatoria', 'Obrigatória'],
+          ['optativa', 'Optativa'],
+        ],
+      },
       { name: 'credits', label: 'Créditos', type: 'number', required: true },
       { name: 'term', label: 'Semestre', placeholder: '2026/1' },
       {
@@ -1083,13 +1101,16 @@ const SCHEMAS = {
 const PROFILE_FIELDS = [
   { name: 'name', label: 'Seu nome', required: true },
   { name: 'level', label: 'Nível', type: 'select', options: LEVELS },
-  { name: 'program', label: 'Programa / curso', placeholder: 'Ex.: Doutorado em Patologia', full: true },
+  { name: 'institution', label: 'Instituição (universidade / faculdade)', placeholder: 'Ex.: Universidade Federal de Minas Gerais (UFMG)', full: true },
+  { name: 'campus', label: 'Campus / unidade', placeholder: 'Ex.: Campus Pampulha, Faculdade de Medicina' },
+  { name: 'program', label: 'Programa / curso', placeholder: 'Ex.: Doutorado em Patologia' },
   { name: 'project', label: 'Título curto do projeto', required: true, full: true, placeholder: 'Ex.: Estresse e barreira intestinal' },
   { name: 'advisor', label: 'Orientador(a)' },
   { name: 'coadvisor', label: 'Coorientador(a)' },
   { name: 'start', label: 'Ingresso', type: 'date', required: true },
   { name: 'end', label: 'Previsão de defesa / conclusão', type: 'date', required: true },
-  { name: 'requiredCredits', label: 'Créditos exigidos', type: 'number' },
+  { name: 'requiredMandatory', label: 'Créditos exigidos em obrigatórias', type: 'number' },
+  { name: 'requiredElective', label: 'Créditos exigidos em optativas', type: 'number' },
   { name: 'scholarship', label: 'Bolsa (agência)', placeholder: 'CAPES, CNPq, FAPESP…' },
   { name: 'scholarshipEnd', label: 'Fim da bolsa', type: 'date' },
 ];
@@ -1156,17 +1177,33 @@ function pace(profile) {
   return { t, p, tone: 'bad', text: 'Bem atrás do tempo do curso. Leve isso para a próxima reunião.' };
 }
 
+// Créditos separados por tipo. Disciplina sem tipo conta como obrigatória.
+const courseType = (c) => (c.type === 'optativa' ? 'optativa' : 'obrigatoria');
+
 function credits(profile) {
-  const done = store
-    .list('courses')
-    .filter((c) => c.status === 'concluida')
-    .reduce((a, c) => a + (Number(c.credits) || 0), 0);
-  const ongoing = store
-    .list('courses')
-    .filter((c) => c.status === 'cursando')
-    .reduce((a, c) => a + (Number(c.credits) || 0), 0);
-  const req = Number(profile?.requiredCredits) || 0;
-  return { done, ongoing, req, pct: req ? (done / req) * 100 : 0 };
+  const sum = (type, status) =>
+    store
+      .list('courses')
+      .filter((c) => (!type || courseType(c) === type) && c.status === status)
+      .reduce((a, c) => a + (Number(c.credits) || 0), 0);
+  const part = (type, req) => {
+    const done = sum(type, 'concluida');
+    const ongoing = sum(type, 'cursando');
+    req = Number(req) || 0;
+    return { done, ongoing, req, pct: req ? (done / req) * 100 : 0, missing: Math.max(0, req - done) };
+  };
+  const mand = part('obrigatoria', profile?.requiredMandatory);
+  const elec = part('optativa', profile?.requiredElective);
+  // compatibilidade com a versão antiga, que tinha só "créditos exigidos"
+  const totalReq = mand.req + elec.req || Number(profile?.requiredCredits) || 0;
+  const total = part(null, totalReq);
+  // no total, o que passa do exigido em um tipo não cobre o outro
+  if (mand.req || elec.req) {
+    const counted = Math.min(mand.done, mand.req) + Math.min(elec.done, elec.req);
+    total.pct = totalReq ? (counted / totalReq) * 100 : 0;
+    total.missing = mand.missing + elec.missing;
+  }
+  return { mand, elec, total, split: !!(mand.req || elec.req) };
 }
 
 // Agenda unificada: tudo que tem data e ainda não foi resolvido.
@@ -1216,7 +1253,7 @@ function lastMeeting() {
     .sort((a, b) => b.date.localeCompare(a.date))[0];
 }
 
-return { stagesOf, experimentProgress, currentStage, researchProgress, timeElapsed, pace, credits, agenda, nextMeeting, lastMeeting };
+return { stagesOf, experimentProgress, currentStage, researchProgress, timeElapsed, pace, courseType, credits, agenda, nextMeeting, lastMeeting };
 })();
 
 // ===== js/seed.js =====
@@ -1246,7 +1283,10 @@ function demoData() {
       coadvisor: '',
       start: d(-610),
       end: d(-610 + 1460),
-      requiredCredits: 32,
+      institution: 'Universidade Federal de Minas Gerais (UFMG)',
+      campus: 'Campus Pampulha',
+      requiredMandatory: 20,
+      requiredElective: 12,
       scholarship: 'CAPES',
       scholarshipEnd: d(-610 + 1460),
     },
@@ -1298,10 +1338,11 @@ function demoData() {
       S({ title: 'Estágio docência', date: d(200), kind: 'marco', notes: '', done: false }),
     ],
     courses: [
-      S({ name: 'Bioestatística', credits: 4, term: '2025/1', status: 'concluida', grade: 'A', url: '' }),
-      S({ name: 'Metodologia da Pesquisa', credits: 4, term: '2025/1', status: 'concluida', grade: 'A', url: '' }),
-      S({ name: 'Patologia Experimental', credits: 6, term: '2025/2', status: 'concluida', grade: 'B', url: '' }),
-      S({ name: 'Imunologia das Mucosas', credits: 4, term: '2026/2', status: 'cursando', grade: '', url: '' }),
+      S({ name: 'Bioestatística', type: 'obrigatoria', credits: 4, term: '2025/1', status: 'concluida', grade: 'A', url: '' }),
+      S({ name: 'Metodologia da Pesquisa', type: 'obrigatoria', credits: 4, term: '2025/1', status: 'concluida', grade: 'A', url: '' }),
+      S({ name: 'Patologia Experimental', type: 'obrigatoria', credits: 6, term: '2025/2', status: 'concluida', grade: 'B', url: '' }),
+      S({ name: 'Tópicos em Neuroimunologia', type: 'optativa', credits: 4, term: '2025/2', status: 'concluida', grade: 'A', url: '' }),
+      S({ name: 'Imunologia das Mucosas', type: 'optativa', credits: 4, term: '2026/2', status: 'cursando', grade: '', url: '' }),
     ],
     certificates: [
       S({ title: 'Apresentação de pôster na Reunião Anual da FeSBE', kind: 'apresentacao', date: d(-150), hours: 20, url: '' }),
@@ -1339,7 +1380,7 @@ function hero(p) {
   return `<section class="hero">
     <div class="hero-inner">
       <div class="hero-text">
-        <p class="eyebrow">${esc(p.program || level)}</p>
+        <p class="eyebrow">${[p.program || level, p.institution].filter(Boolean).map(esc).join(' · ')}</p>
         <h1>${esc(p.project)}</h1>
         <div class="hero-meta">
           ${p.advisor ? `<span>${icon('users')} ${esc(p.advisor)}</span>` : ''}
@@ -1455,9 +1496,16 @@ function render() {
       <section class="col">
         <header class="col-head"><h2>Vida acadêmica</h2><a href="#/vida-academica" class="mini-link">Abrir ${icon('arrow')}</a></header>
         <div class="card soft">
-          <div class="pace-row"><span>Créditos</span><b>${cr.done}${cr.req ? ` / ${cr.req}` : ''}</b></div>
-          ${progressBar(cr.pct)}
-          ${cr.ongoing ? `<small class="muted">+ ${cr.ongoing} em curso</small>` : ''}
+          ${
+            cr.split
+              ? `<div class="pace-row"><span>Obrigatórias</span><b>${cr.mand.done}${cr.mand.req ? ` / ${cr.mand.req}` : ''}</b></div>
+                 ${progressBar(cr.mand.pct)}
+                 <div class="pace-row"><span>Optativas</span><b>${cr.elec.done}${cr.elec.req ? ` / ${cr.elec.req}` : ''}</b></div>
+                 ${progressBar(cr.elec.pct)}`
+              : `<div class="pace-row"><span>Créditos</span><b>${cr.total.done}${cr.total.req ? ` / ${cr.total.req}` : ''}</b></div>
+                 ${progressBar(cr.total.pct)}`
+          }
+          ${cr.total.ongoing ? `<small class="muted">+ ${cr.total.ongoing} em curso</small>` : ''}
         </div>
         <h3 class="sub">Disciplinas</h3>
         <ul class="tile-list">
@@ -1859,7 +1907,7 @@ return { title, render };
 const __m_views_academic = (() => {
 const { store } = __m_store;
 const { esc, icon, fmtDate, badge, progressBar, rowActions, emptyState } = __m_ui;
-const { credits } = __m_metrics;
+const { credits, courseType } = __m_metrics;
 const { LEVELS } = __m_schemas;
 
 const title = 'Vida acadêmica';
@@ -1870,11 +1918,12 @@ function render() {
   const cr = credits(p);
   const level = LEVELS.find(([v]) => v === p.level)?.[1] || '';
   const order = { cursando: 0, planejada: 1, concluida: 2 };
-  const courses = [...s.courses].sort((a, b) => order[a.status] - order[b.status]);
+  const courses = [...s.courses].sort((a, b) => order[a.status] - order[b.status] || courseType(a).localeCompare(courseType(b)));
 
   return `<div class="page">
     <header class="page-head">
-      <div><p class="eyebrow dark">Vida acadêmica</p><h1>${esc(p.name)}</h1><p class="muted">${esc(level)}${p.program ? ' · ' + esc(p.program) : ''}</p></div>
+      <div><p class="eyebrow dark">Vida acadêmica</p><h1>${esc(p.name)}</h1><p class="muted">${[level, p.program].filter(Boolean).map(esc).join(' · ')}</p>
+      ${p.institution || p.campus ? `<p class="muted">${icon('book')} ${[p.institution, p.campus].filter(Boolean).map(esc).join(' · ')}</p>` : ''}</div>
       <button class="btn btn-ghost" data-action="edit-profile">${icon('edit')} Editar dados</button>
     </header>
 
@@ -1889,6 +1938,8 @@ function render() {
       </section>
       <section class="card">
         <h3 class="sub">Curso</h3>
+        ${p.institution ? `<p><b>${esc(p.institution)}</b></p>` : `<button class="btn btn-soft full" data-action="edit-profile">${icon('plus')} Adicionar instituição</button>`}
+        ${p.campus ? `<p class="muted">${esc(p.campus)}</p>` : ''}
         <p>Ingresso: <b>${fmtDate(p.start)}</b></p>
         <p>Defesa prevista: <b>${fmtDate(p.end)}</b> ${badge(p.end)}</p>
       </section>
@@ -1907,19 +1958,16 @@ function render() {
         <h2>${icon('book')} Disciplinas cursadas</h2>
         <button class="btn btn-soft" data-action="add" data-col="courses">${icon('plus')} Disciplina</button>
       </header>
-      <div class="card soft credits-card">
-        <div class="pace-row"><span>Créditos concluídos</span><b>${cr.done}${cr.req ? ` de ${cr.req}` : ''}</b></div>
-        ${progressBar(cr.pct)}
-        <small class="muted">${cr.req ? (cr.done >= cr.req ? 'Créditos completos ✓' : `Faltam ${Math.max(0, cr.req - cr.done)} créditos`) : 'Informe os créditos exigidos em “Editar dados”.'}${cr.ongoing ? ` · ${cr.ongoing} em curso` : ''}</small>
-      </div>
+      ${creditCards(cr)}
       ${
         courses.length
           ? `<div class="table-wrap"><table class="table">
-          <thead><tr><th>Disciplina</th><th>Semestre</th><th>Créditos</th><th>Situação</th><th>Conceito</th><th></th></tr></thead>
+          <thead><tr><th>Disciplina</th><th>Tipo</th><th>Semestre</th><th>Créditos</th><th>Situação</th><th>Conceito</th><th></th></tr></thead>
           <tbody>${courses
             .map(
               (c) => `<tr>
               <td>${c.url ? `<a href="${esc(c.url)}" target="_blank" rel="noopener">${esc(c.name)}</a>` : esc(c.name)}</td>
+              <td><span class="pill type-${courseType(c)}">${courseType(c) === 'optativa' ? 'Optativa' : 'Obrigatória'}</span></td>
               <td>${esc(c.term || '—')}</td><td>${esc(c.credits)}</td>
               <td><span class="pill status-${c.status}">${{ cursando: 'Cursando', concluida: 'Concluída', planejada: 'Planejada' }[c.status] || ''}</span></td>
               <td>${esc(c.grade || '—')}</td><td>${rowActions('courses', c.id)}</td></tr>`
@@ -1931,7 +1979,37 @@ function render() {
   </div>`;
 }
 
-return { title, render };
+function creditBlock(label, c) {
+  const note = c.req
+    ? c.done >= c.req
+      ? 'Completo ✓'
+      : `Faltam ${c.missing}`
+    : 'Exigência não informada';
+  return `<div class="credit-block">
+    <div class="pace-row"><span>${label}</span><b>${c.done}${c.req ? ` / ${c.req}` : ''}</b></div>
+    ${progressBar(c.pct, c.req && c.done >= c.req ? '' : '')}
+    <small class="muted">${note}${c.ongoing ? ` · ${c.ongoing} em curso` : ''}</small>
+  </div>`;
+}
+
+function creditCards(cr) {
+  if (!cr.split && !cr.total.req) {
+    return `<div class="card soft credits-card"><div class="pace-row"><span>Créditos concluídos</span><b>${cr.total.done}</b></div>
+      <small class="muted">Informe os créditos exigidos em obrigatórias e optativas em <button class="link-inline" data-action="edit-profile">Editar dados</button>.</small></div>`;
+  }
+  if (!cr.split) {
+    return `<div class="card soft credits-card">${creditBlock('Créditos concluídos', cr.total)}
+      <small class="muted">Separe a exigência entre obrigatórias e optativas em <button class="link-inline" data-action="edit-profile">Editar dados</button>.</small></div>`;
+  }
+  return `<div class="card soft credits-card credits-split">
+    ${creditBlock('Obrigatórias', cr.mand)}
+    ${creditBlock('Optativas', cr.elec)}
+    <div class="credit-total"><span>Total</span><b>${cr.mand.done + cr.elec.done} / ${cr.total.req}</b>
+      <small class="muted">${cr.total.missing ? `faltam ${cr.total.missing} créditos` : 'créditos completos ✓'}</small></div>
+  </div>`;
+}
+
+return { title, render, creditCards };
 })();
 
 // ===== js/views/archive.js =====
