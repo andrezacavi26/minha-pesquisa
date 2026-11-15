@@ -56,6 +56,7 @@ const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
 function row(a) {
   const canToggle = a.col === 'tasks' || a.col === 'milestones' || a.col === 'assessments';
+  const isProtocol = a.col === 'protocol';
   return `<li class="row agenda-row u-${urgency(a.date, a.done)} ${a.done ? 'is-done' : ''}">
     <div class="date-chip small"><b>${fmtDate(a.date, { day: '2-digit' })}</b><span>${fmtDate(a.date, { month: 'short' })}</span></div>
     <div class="row-main"><strong>${esc(a.title)}</strong><small class="muted"><span class="tag">${esc(a.kind)}</span> ${esc(a.sub || '')}</small></div>
@@ -63,9 +64,11 @@ function row(a) {
     ${
       canToggle
         ? `<button class="icon-btn" title="${a.done ? 'Reabrir' : 'Marcar como concluído'}" data-action="toggle-done" data-col="${a.col}" data-id="${a.id}">${icon('check')}</button>`
+        : isProtocol
+        ? `<button class="icon-btn" title="${a.done ? 'Reabrir' : 'Marcar como feita'}" data-action="toggle-occ" data-project="${a.project}" data-occ="${a.id}">${icon('check')}</button>`
         : ''
     }
-    ${a.col ? `<button class="icon-btn" title="Editar" data-action="edit" data-col="${a.col}" data-id="${a.id}">${icon('edit')}</button>` : `<button class="icon-btn" title="Editar projeto" data-action="edit-profile">${icon('edit')}</button>`}
+    ${isProtocol ? `<a class="icon-btn" title="Abrir agenda do protocolo" href="#/projeto?id=${a.project}&aba=agenda">${icon('arrow')}</a>` : a.col ? `<button class="icon-btn" title="Editar" data-action="edit" data-col="${a.col}" data-id="${a.id}">${icon('edit')}</button>` : `<button class="icon-btn" title="Editar projeto" data-action="edit-profile">${icon('edit')}</button>`}
   </li>`;
 }
 

@@ -2,6 +2,7 @@
 import { store } from './store.js';
 import { daysUntil, todayISO } from './ui.js';
 import { STAGES, kindLabel } from './schemas.js';
+import { occurrences } from './protocol.js';
 
 const STATUS_WEIGHT = { todo: 0, doing: 0.5, done: 1 };
 
@@ -92,6 +93,16 @@ export function agenda({ includeDone = false } = {}) {
   store.list('assessments').forEach((a) => {
     if (a.date && (includeDone || !a.done))
       out.push({ date: a.date, title: `${kindLabel(a.kind)}: ${a.title}`, kind: 'Disciplina', col: 'assessments', id: a.id, done: !!a.done, sub: courses[a.courseId]?.name || '' });
+  });
+  // tarefas da agenda do protocolo: atrasadas recentes e próximos 60 dias
+  const t0 = todayISO();
+  store.list('projects').forEach((p) => {
+    occurrences(p).forEach((o) => {
+      const n = daysUntil(o.date);
+      if (n === null || n > 60 || n < -14) return;
+      if (o.done && !includeDone) return;
+      out.push({ date: o.date, title: o.step.name, kind: 'Protocolo', col: 'protocol', id: o.id, project: p.id, done: o.done, sub: `${o.cohort.name} · DPN ${o.dpn} · ${o.animals} animais` });
+    });
   });
   store.list('milestones').forEach((m) => {
     if (includeDone || !m.done)

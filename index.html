@@ -766,6 +766,44 @@ a.tile:hover, .tile.ghost:hover { border-color: #a6e5cf; }
 .brand-name { white-space: nowrap; }
 @media (prefers-reduced-motion: reduce) { .sync-wait .sync-dot { animation: none; } }
 
+/* ===== Meu projeto ===== */
+.project-title { font-size: clamp(22px, 2.6vw, 32px) !important; line-height: 1.2; max-width: 980px; text-wrap: balance; }
+.project-head { align-items: flex-start; }
+.project-card h3 { font-size: 16px; line-height: 1.3; }
+.kv-list { display: flex; flex-direction: column; gap: 10px; }
+.kv { display: grid; grid-template-columns: 150px 1fr; gap: 10px; font-size: 14.5px; }
+.kv span { color: var(--muted); }
+.kv b { font-weight: 500; }
+.obj-list { margin: 10px 0 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; }
+.shortcuts { display: flex; flex-direction: column; gap: 10px; }
+.shortcuts .tile { box-shadow: none; }
+.factor-chips { margin-bottom: 18px; align-items: center; }
+.factor-chips .pill { font-size: 14px; padding: 6px 12px; background: #fff; border: 1px solid var(--line); }
+.times { color: var(--muted); font-weight: 700; padding: 0 2px; }
+.mini-input { width: 52px; font: inherit; font-size: 13px; padding: 2px 6px; border: 1px solid #c9dcd9; border-radius: 6px; }
+.cell-input { font: inherit; font-size: 14.5px; border: 1px solid transparent; border-radius: 8px; padding: 5px 8px; width: 100%; min-width: 60px; background: transparent; }
+.cell-input:hover { border-color: var(--line); }
+.cell-input:focus { outline: none; border-color: var(--mint-2); background: #fff; box-shadow: 0 0 0 3px rgba(62,232,181,.2); }
+.cell-input.num { width: 72px; }
+.groups-table td { vertical-align: middle; }
+.warn-text { color: var(--late); }
+.tl-card { margin-bottom: 24px; overflow-x: auto; }
+.tl-svg { width: 100%; min-width: 720px; height: auto; display: block; }
+.tl-tick { font-size: 11px; fill: var(--muted); font-family: var(--font); }
+.tl-date { font-size: 11px; fill: var(--ink-2); font-family: var(--font); font-weight: 600; }
+.tl-label { font-size: 12.5px; fill: var(--ink); font-family: var(--font); }
+.tl-today { font-size: 11px; fill: var(--deep); font-weight: 700; font-family: var(--font); }
+.agenda-grid { grid-template-columns: 1.3fr 1fr; }
+.day-block { margin-bottom: 16px; }
+.day-block.is-today .day-title { color: var(--mint-ink); }
+.day-title { font-size: 14.5px; font-weight: 700; color: var(--ink-2); margin-bottom: 8px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.day-title .badge { text-transform: none; }
+.occ-dot { width: 10px; height: 10px; border-radius: 50%; flex: none; }
+.row.occ.is-done .row-main strong { text-decoration: line-through; color: var(--muted); }
+.weekend-alert { display: flex; gap: 8px; align-items: center; background: var(--soon-soft); color: #8a5a06; border-radius: 10px; padding: 10px 12px; font-size: 14px; margin-bottom: 14px; }
+.weekend-alert .ico { width: 16px; height: 16px; flex: none; }
+@media (max-width: 960px) { .agenda-grid { grid-template-columns: 1fr; } .kv { grid-template-columns: 1fr; gap: 2px; } }
+
 </style>
   </head>
   <body>
@@ -808,6 +846,7 @@ const COLLECTIONS = [
   'assessments', // provas, trabalhos e apresentações de cada disciplina
   'drawings', // desenhos experimentais
   'articles', // biblioteca de artigos (PubMed, SciELO, manual)
+  'projects', // projetos de pesquisa (grupos, agenda do protocolo, reagentes)
 ];
 
 function empty() {
@@ -1216,6 +1255,7 @@ const SCHEMAS = {
       { name: 'groups', label: 'Grupos experimentais', placeholder: 'Ex.: Controle, Estresse, Estresse + tratamento' },
       { name: 'n', label: 'n por grupo', type: 'number' },
       { name: 'ethicsId', label: 'Protocolo de ética vinculado', type: 'select', options: ethicsOptions() },
+      { name: 'projectId', label: 'Projeto', type: 'select', options: [['', '— nenhum —'], ...store.list('projects').map((p) => [p.id, p.title.length > 60 ? p.title.slice(0, 59) + '…' : p.title])] },
       { name: 'deadline', label: 'Meta de conclusão', type: 'date' },
       { name: 'notes', label: 'Notas', type: 'textarea', rows: 2 },
     ],
@@ -1426,12 +1466,245 @@ function defaultDuration(level) {
 return { STAGES, STAGE_STATUS, PAPER_STATUS, ASSESSMENT_KINDS, kindLabel, LEVELS, SCHEMAS, PROFILE_FIELDS, defaultDuration };
 })();
 
+// ===== js/protocol.js =====
+const __m_protocol = (() => {
+// Lógica do planejamento da execução: grupos experimentais, lotes de animais,
+// agenda do protocolo (DPN -> datas reais) e calculadoras de reagentes e doses.
+const { uid } = __m_store;
+
+const WEEKDAYS = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sáb'];
+const FREQ = [
+  ['daily', 'Todo dia'],
+  ['weekly', 'Em dias da semana'],
+  ['dpns', 'Em dias (DPN) específicos'],
+  ['once', 'Uma vez (no início)'],
+  ['continuous', 'Período contínuo (sem tarefa diária)'],
+];
+
+// ---------- Datas ----------
+const pad = (n) => String(n).padStart(2, '0');
+const iso = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+function parse(isoStr) {
+  const [y, m, d] = String(isoStr || '').split('-').map(Number);
+  return y && m && d ? new Date(y, m - 1, d) : null;
+}
+function dpnToDate(birthISO, dpn) {
+  const b = parse(birthISO);
+  if (!b) return null;
+  b.setDate(b.getDate() + Number(dpn));
+  return iso(b);
+}
+function dateToDpn(birthISO, dateISO) {
+  const b = parse(birthISO);
+  const d = parse(dateISO);
+  if (!b || !d) return null;
+  return Math.round((d - b) / 86400000);
+}
+const weekday = (dateISO) => parse(dateISO)?.getDay();
+
+// ---------- Grupos ----------
+// fatores: [{ name: 'Estresse', levels: ['Não', 'Sim'] }, ...] -> todas as combinações
+function combineFactors(factors) {
+  const fs = (factors || []).filter((f) => f.name && f.levels?.length);
+  if (!fs.length) return [];
+  let combos = [{}];
+  fs.forEach((f) => {
+    const next = [];
+    combos.forEach((c) => f.levels.forEach((l) => next.push({ ...c, [f.name]: l })));
+    combos = next;
+  });
+  return combos;
+}
+
+function groupLabel(levels, factors) {
+  return (factors || [])
+    .map((f) => levels[f.name])
+    .filter(Boolean)
+    .join(' + ');
+}
+
+// Gera os grupos a partir dos fatores, mantendo n e nome dos grupos que já existiam
+function rebuildGroups(design) {
+  const old = design.groups || [];
+  const key = (lv) => JSON.stringify(Object.keys(lv).sort().map((k) => [k, lv[k]]));
+  const byKey = Object.fromEntries(old.map((g) => [key(g.levels || {}), g]));
+  return combineFactors(design.factors).map((levels, i) => {
+    const prev = byKey[key(levels)];
+    return prev ? { ...prev, levels } : { id: uid(), name: `G${i + 1}`, levels, n: design.defaultN || '' };
+  });
+}
+
+// "Estresse=Sim" -> só grupos com esse nível. Vazio: todos.
+function matches(group, cond) {
+  if (!cond) return true;
+  return String(cond)
+    .split('&')
+    .map((c) => c.trim())
+    .filter(Boolean)
+    .every((c) => {
+      const [f, l] = c.split('=').map((x) => x.trim());
+      return group.levels?.[f] === l;
+    });
+}
+
+function groupTotals(design) {
+  const groups = design?.groups || [];
+  const perBox = Number(design?.perBox) || 0;
+  const total = groups.reduce((s, g) => s + (Number(g.n) || 0), 0);
+  // caixas por grupo (não se misturam grupos na mesma caixa)
+  const boxes = perBox ? groups.reduce((s, g) => s + Math.ceil((Number(g.n) || 0) / perBox), 0) : 0;
+  return { total, boxes, groups: groups.length, missingN: groups.filter((g) => !Number(g.n)).length };
+}
+
+function animalsFor(design, cond, cohort) {
+  return (design?.groups || [])
+    .filter((g) => matches(g, cond))
+    .reduce((s, g) => s + (Number(cohort?.nPerGroup) || Number(g.n) || 0), 0);
+}
+
+// ---------- Agenda do protocolo ----------
+function stepDpns(step) {
+  const a = Number(step.start);
+  const b = step.end === '' || step.end === undefined || step.end === null ? a : Number(step.end);
+  if (isNaN(a)) return [];
+  const range = [];
+  for (let d = Math.min(a, b); d <= Math.max(a, b); d++) range.push(d);
+  return range;
+}
+
+// Lista de ocorrências (tarefas com data) de um projeto
+function occurrences(project) {
+  const out = [];
+  const steps = project.protocol?.steps || [];
+  (project.cohorts || []).forEach((c) => {
+    if (!c.birth) return;
+    steps.forEach((s) => {
+      let dpns = [];
+      if (s.freq === 'continuous') return;
+      if (s.freq === 'once') dpns = [Number(s.start)];
+      else if (s.freq === 'daily') dpns = stepDpns(s);
+      else if (s.freq === 'weekly') {
+        const wds = (s.weekdays || []).map(Number);
+        dpns = stepDpns(s).filter((d) => wds.includes(weekday(dpnToDate(c.birth, d))));
+      } else if (s.freq === 'dpns')
+        dpns = String(s.dpns || '')
+          .split(/[,;\s]+/)
+          .map(Number)
+          .filter((n) => !isNaN(n) && String(n) !== '');
+      const animals = animalsFor(project.design, s.appliesTo, c);
+      dpns.forEach((d) => {
+        const date = dpnToDate(c.birth, d);
+        const id = `${c.id}:${s.id}:${d}`;
+        const wd = weekday(date);
+        out.push({
+          id,
+          date,
+          dpn: d,
+          step: s,
+          cohort: c,
+          animals,
+          weekend: wd === 0 || wd === 6,
+          done: !!project.done?.[id],
+        });
+      });
+    });
+  });
+  return out.sort((a, b) => a.date.localeCompare(b.date) || (a.step.time || '').localeCompare(b.step.time || ''));
+}
+
+// Período total do protocolo em DPN (para a linha do tempo)
+function dpnRange(project) {
+  const steps = project.protocol?.steps || [];
+  const all = steps.flatMap((s) => {
+    if (s.freq === 'dpns')
+      return String(s.dpns || '')
+        .split(/[,;\s]+/)
+        .map(Number)
+        .filter((n) => !isNaN(n));
+    return stepDpns(s);
+  });
+  if (!all.length) return [0, 70];
+  return [Math.max(0, Math.min(...all) - 2), Math.max(...all) + 2];
+}
+
+// ---------- Calculadoras ----------
+// Diluição 1:N, volume final por amostra (µL), nº de amostras, margem (%)
+function reagentNeed(r, defaultSamples) {
+  const ratio = Number(String(r.dilution || '').split(':').pop()) || 0;
+  const samples = Number(r.samples) || defaultSamples || 0;
+  const vol = Number(r.volume) || 0;
+  const margin = Number(r.margin ?? 10) || 0;
+  if (!ratio || !vol || !samples) return null;
+  const finalTotal = vol * samples * (1 + margin / 100); // µL de solução de trabalho
+  const stock = finalTotal / ratio; // µL do reagente concentrado
+  const have = Number(r.stock) || 0;
+  return { samples, finalTotal, stock, have, enough: have ? have >= stock : null, ratio };
+}
+
+// Dose (mg/kg), peso médio (g), nº animais, nº de administrações, concentração (mg/mL)
+function doseNeed(d, defaultAnimals) {
+  const dose = Number(d.dose) || 0;
+  const weight = (Number(d.weight) || 0) / 1000; // kg
+  const animals = Number(d.animals) || defaultAnimals || 0;
+  const times = Number(d.times) || 0;
+  const conc = Number(d.conc) || 0;
+  if (!dose || !weight) return null;
+  const mgPerAnimal = dose * weight;
+  const mlPerAnimal = conc ? mgPerAnimal / conc : null;
+  const total = mgPerAnimal * animals * times;
+  return {
+    animals,
+    times,
+    mgPerAnimal,
+    mlPerAnimal,
+    mlPerKg: conc ? dose / conc : null,
+    totalMg: total,
+    totalMl: conc ? total / conc : null,
+  };
+}
+
+// ---------- Modelo: estresse na adolescência + EA + doxiciclina ----------
+function templateAdolescentStress() {
+  const S = (o) => ({ id: uid(), appliesTo: '', time: '', notes: '', color: '#3ee8b5', weekdays: [], dpns: '', ...o });
+  return {
+    design: {
+      factors: [
+        { name: 'Estresse', levels: ['Naïve', 'Estressado'] },
+        { name: 'EA', levels: ['Sem EA', 'Com EA'] },
+        { name: 'Tratamento', levels: ['Salina', 'Doxiciclina'] },
+      ],
+      perBox: 4,
+      defaultN: 8,
+    },
+    steps: [
+      S({ name: 'Enriquecimento ambiental (alojamento)', freq: 'continuous', start: 21, end: 40, appliesTo: 'EA=Com EA', color: '#20c997', notes: 'Gaiola com brinquedos, túneis, roda e material para roer.' }),
+      S({ name: 'Trocar maravalha das caixas de EA', freq: 'weekly', start: 21, end: 40, weekdays: [1, 4], appliesTo: 'EA=Com EA', color: '#20c997' }),
+      S({ name: 'Mudar orientação e cor dos objetos do EA', freq: 'weekly', start: 21, end: 40, weekdays: [1, 3, 5], appliesTo: 'EA=Com EA', color: '#20c997' }),
+      S({ name: 'Choque nas patas (25 choques, 1 mA, 2 s)', freq: 'daily', start: 31, end: 40, appliesTo: 'Estresse=Estressado', color: '#d9474f', notes: 'Choques em intervalos aleatórios de 60 ± 20 s.' }),
+      S({ name: 'Estresse de restrição (1 h)', freq: 'dpns', start: 31, end: 40, dpns: '31, 32, 40', appliesTo: 'Estresse=Estressado', color: '#d9474f', notes: 'Logo após o choque, no 1º, 2º e último dia.' }),
+      S({ name: 'Gavagem: doxiciclina 40 mg/kg ou salina', freq: 'daily', start: 31, end: 40, color: '#4a90d9', time: '1 h após o estresse' }),
+      S({ name: 'Eutanásia e coleta do cólon', freq: 'once', start: 65, end: 65, color: '#0a2a2c', notes: 'Isoflurano; cólon em bexiga com PFA 4% por 3 h.' }),
+    ],
+    reagents: [
+      { id: uid(), name: 'Rabbit anti-nNOS (primário)', dilution: '1:1000', volume: 500, samples: '', margin: 10, stock: '' },
+      { id: uid(), name: 'Goat anti-HuC/D (primário)', dilution: '1:500', volume: 500, samples: '', margin: 10, stock: '' },
+      { id: uid(), name: 'Donkey anti-goat (secundário)', dilution: '1:500', volume: 500, samples: '', margin: 10, stock: '' },
+      { id: uid(), name: 'Donkey anti-rabbit (secundário)', dilution: '1:500', volume: 500, samples: '', margin: 10, stock: '' },
+    ],
+    doses: [{ id: uid(), name: 'Doxiciclina (gavagem)', dose: 40, weight: '', animals: '', appliesTo: 'Tratamento=Doxiciclina', times: 10, conc: '' }],
+  };
+}
+
+return { WEEKDAYS, FREQ, dpnToDate, dateToDpn, weekday, combineFactors, groupLabel, rebuildGroups, matches, groupTotals, animalsFor, stepDpns, occurrences, dpnRange, reagentNeed, doseNeed, templateAdolescentStress };
+})();
+
 // ===== js/metrics.js =====
 const __m_metrics = (() => {
 // Cálculos derivados: progresso, ritmo, créditos e agenda unificada.
 const { store } = __m_store;
 const { daysUntil, todayISO } = __m_ui;
 const { STAGES, kindLabel } = __m_schemas;
+const { occurrences } = __m_protocol;
 
 const STATUS_WEIGHT = { todo: 0, doing: 0.5, done: 1 };
 
@@ -1522,6 +1795,16 @@ function agenda({ includeDone = false } = {}) {
   store.list('assessments').forEach((a) => {
     if (a.date && (includeDone || !a.done))
       out.push({ date: a.date, title: `${kindLabel(a.kind)}: ${a.title}`, kind: 'Disciplina', col: 'assessments', id: a.id, done: !!a.done, sub: courses[a.courseId]?.name || '' });
+  });
+  // tarefas da agenda do protocolo: atrasadas recentes e próximos 60 dias
+  const t0 = todayISO();
+  store.list('projects').forEach((p) => {
+    occurrences(p).forEach((o) => {
+      const n = daysUntil(o.date);
+      if (n === null || n > 60 || n < -14) return;
+      if (o.done && !includeDone) return;
+      out.push({ date: o.date, title: o.step.name, kind: 'Protocolo', col: 'protocol', id: o.id, project: p.id, done: o.done, sub: `${o.cohort.name} · DPN ${o.dpn} · ${o.animals} animais` });
+    });
   });
   store.list('milestones').forEach((m) => {
     if (includeDone || !m.done)
@@ -2430,6 +2713,7 @@ const __m_seed = (() => {
 // Dados de exemplo (datas relativas a hoje, para a demonstração sempre parecer atual).
 const { uid } = __m_store;
 const { templateGroups } = __m_views_drawing;
+const { templateAdolescentStress, rebuildGroups, occurrences } = __m_protocol;
 
 function d(offsetDays) {
   const x = new Date();
@@ -2442,8 +2726,28 @@ function demoData() {
   const e1 = uid(), e2 = uid(), e3 = uid(), ceua = uid(), cImu = uid(), cHist = uid();
   const now = new Date().toISOString();
   const S = (o) => ({ id: uid(), createdAt: now, ...o });
+  // Projeto de exemplo: modelo de estresse na adolescência, lote em andamento (hoje = DPN 34)
+  const tpl = templateAdolescentStress();
+  const design = { ...tpl.design };
+  design.groups = rebuildGroups(design);
+  const project = {
+    id: uid(), createdAt: now, title: 'Análise de neurônios do plexo mioentérico de ratos estressados na adolescência: efeitos do enriquecimento ambiental e da doxiciclina',
+    type: 'doutorado', status: 'andamento', program: 'CAPES', institution: 'Departamento de Histologia', student: 'Marina', advisor: 'Profa. Dra. Helena Costa',
+    parentTitle: '', parentNumber: '', start: d(-60), end: d(300), ethicsId: ceua,
+    summary: 'Avalia se o enriquecimento ambiental, associado à doxiciclina, previne alterações nos neurônios do plexo mioentérico de ratos submetidos a estresse na adolescência.',
+    keywords: 'Eixo cérebro-intestino; Cólon; Sistema nervoso entérico; Plexo mioentérico',
+    objective: 'Avaliar se o estresse na adolescência altera a população e a morfologia dos neurônios do plexo mioentérico e se EA + doxiciclina previnem essas alterações.',
+    specific: 'Investigar o efeito do estresse sobre a densidade e a morfologia dos neurônios totais e nitrérgicos\nAvaliar se o EA atenua as alterações entéricas\nVerificar se a doxiciclina, isolada ou com EA, é neuroprotetora',
+    design, protocol: { steps: tpl.steps }, cohorts: [{ id: uid(), name: 'Lote 1', birth: d(-34), nPerGroup: '', notes: '' }],
+    reagents: tpl.reagents, doses: tpl.doses.map((x) => ({ ...x, weight: 110, conc: 4 })), done: {},
+  };
+  occurrences(project).forEach((o) => {
+    if (o.date < d(0) && !(o.step.name.startsWith('Mudar') && o.dpn >= 31)) project.done[o.id] = now;
+  });
+
   return {
     version: 1,
+    projects: [project],
     profile: {
       name: 'Marina',
       level: 'doutorado',
@@ -3417,6 +3721,8 @@ function todayList() {
       ${
         a.col === 'tasks'
           ? `<button class="checkbox" data-action="toggle-task" data-id="${a.id}" aria-label="Marcar como feita"></button>`
+          : a.col === 'protocol'
+          ? `<button class="checkbox" data-action="toggle-occ" data-project="${a.project}" data-occ="${a.id}" aria-label="Marcar como feita"></button>`
           : a.col === 'assessments'
           ? `<button class="checkbox" data-action="toggle-done" data-col="assessments" data-id="${a.id}" aria-label="Marcar como concluída"></button>`
           : `<span class="kind-dot" title="${esc(a.kind)}"></span>`
@@ -3548,6 +3854,634 @@ function archiveTile(ic, label, count, href) {
 }
 
 return { title, hero, render };
+})();
+
+// ===== js/views/projects.js =====
+const __m_views_projects = (() => {
+// Aba "Meu projeto": vários projetos por pessoa. Cada projeto tem Resumo,
+// Grupos e animais, Agenda do protocolo e Reagentes e doses.
+const { store, uid } = __m_store;
+const { esc, icon, fmtDate, badge, emptyState, todayISO, openForm, confirmDialog, toast, progressBar, daysUntil } = __m_ui;
+const P = __m_protocol;
+
+const title = 'Meu projeto';
+
+const PROJECT_TYPES = [
+  ['ic', 'Iniciação científica (IC/PIC)'],
+  ['tcc', 'TCC'],
+  ['mestrado', 'Mestrado'],
+  ['doutorado', 'Doutorado'],
+  ['posdoc', 'Pós-doutorado'],
+  ['colaboracao', 'Colaboração / outro'],
+];
+const typeLabel = (t) => Object.fromEntries(PROJECT_TYPES)[t] || '';
+
+const PROJECT_FIELDS = () => [
+  { name: 'title', label: 'Título do projeto', type: 'textarea', rows: 2, required: true },
+  { name: 'type', label: 'Tipo', type: 'select', options: PROJECT_TYPES },
+  { name: 'status', label: 'Situação', type: 'select', options: [['planejamento', 'Em planejamento'], ['andamento', 'Em andamento'], ['concluido', 'Concluído']] },
+  { name: 'program', label: 'Edital / programa', placeholder: 'Ex.: PROIC/UEL, CAPES, FAPESP' },
+  { name: 'institution', label: 'Instituição e departamento', placeholder: 'Ex.: UEL, Departamento de Histologia' },
+  { name: 'student', label: 'Aluno(a)' },
+  { name: 'advisor', label: 'Orientador(a)' },
+  { name: 'parentTitle', label: 'Projeto do orientador (se este for subprojeto)', type: 'textarea', rows: 2 },
+  { name: 'parentNumber', label: 'Número do projeto do orientador' },
+  { name: 'start', label: 'Início', type: 'date' },
+  { name: 'end', label: 'Fim', type: 'date' },
+  { name: 'ethicsId', label: 'Protocolo de ética (CEUA/CEP)', type: 'select', options: [['', '— nenhum —'], ...store.list('ethics').map((e) => [e.id, `${e.kind} ${e.number}`])] },
+  { name: 'summary', label: 'Resumo', type: 'textarea', rows: 4 },
+  { name: 'keywords', label: 'Palavras-chave', full: true },
+  { name: 'objective', label: 'Objetivo geral', type: 'textarea', rows: 3 },
+  { name: 'specific', label: 'Objetivos específicos', type: 'textarea', rows: 4, hint: 'Um por linha.' },
+];
+
+const STEP_FIELDS = (design) => {
+  const conds = [['', 'Todos os grupos']];
+  (design?.factors || []).forEach((f) => f.levels.forEach((l) => conds.push([`${f.name}=${l}`, `Só ${f.name}: ${l}`])));
+  return [
+    { name: 'name', label: 'Etapa / tarefa', required: true, full: true, placeholder: 'Ex.: Gavagem com doxiciclina' },
+    { name: 'freq', label: 'Frequência', type: 'select', options: P.FREQ },
+    { name: 'appliesTo', label: 'Para quais animais', type: 'select', options: conds },
+    { name: 'start', label: 'Começa no DPN', type: 'number', required: true },
+    { name: 'end', label: 'Termina no DPN', type: 'number' },
+    { name: 'dpns', label: 'DPNs específicos (se for o caso)', placeholder: 'Ex.: 31, 32, 40', full: true },
+    ...P.WEEKDAYS.map((d, i) => ({ name: `wd${i}`, label: d, type: 'checkbox' })),
+    { name: 'time', label: 'Horário / momento', placeholder: 'Ex.: 9h, 1 h após o estresse' },
+    { name: 'color', label: 'Cor', type: 'select', options: [['#3ee8b5', 'Verde-água'], ['#20c997', 'Verde'], ['#d9474f', 'Vermelho'], ['#4a90d9', 'Azul'], ['#9b59b6', 'Roxo'], ['#e7a33a', 'Laranja'], ['#0a2a2c', 'Escuro']] },
+    { name: 'notes', label: 'Observações', type: 'textarea', rows: 2 },
+  ];
+};
+
+const COHORT_FIELDS = [
+  { name: 'name', label: 'Nome do lote', required: true, placeholder: 'Ex.: Lote 1' },
+  { name: 'birth', label: 'Data de nascimento (DPN 0)', type: 'date', required: true },
+  { name: 'nPerGroup', label: 'Animais por grupo neste lote', type: 'number', hint: 'Deixe vazio para usar o n de cada grupo.' },
+  { name: 'notes', label: 'Observações', type: 'textarea', rows: 2 },
+];
+
+const REAGENT_FIELDS = [
+  { name: 'name', label: 'Reagente / anticorpo', required: true, full: true },
+  { name: 'dilution', label: 'Diluição', placeholder: '1:1000', required: true },
+  { name: 'volume', label: 'Volume de solução por amostra (µL)', type: 'number', required: true },
+  { name: 'samples', label: 'Nº de amostras', type: 'number', hint: 'Vazio = total de animais do projeto.' },
+  { name: 'margin', label: 'Margem de segurança (%)', type: 'number', default: 10 },
+  { name: 'stock', label: 'Quanto você tem (µL)', type: 'number' },
+];
+
+const DOSE_FIELDS = (design) => [
+  { name: 'name', label: 'Substância e via', required: true, full: true },
+  { name: 'dose', label: 'Dose (mg/kg)', type: 'number', required: true },
+  { name: 'weight', label: 'Peso médio dos animais (g)', type: 'number', required: true },
+  {
+    name: 'appliesTo',
+    label: 'Animais tratados',
+    type: 'select',
+    options: [['', 'Todos os grupos'], ...(design?.factors || []).flatMap((f) => f.levels.map((l) => [`${f.name}=${l}`, `Só ${f.name}: ${l}`]))],
+  },
+  { name: 'animals', label: 'Nº de animais (opcional)', type: 'number', hint: 'Vazio = calculado pelos grupos.' },
+  { name: 'times', label: 'Nº de administrações por animal', type: 'number', required: true },
+  { name: 'conc', label: 'Concentração da solução (mg/mL)', type: 'number' },
+];
+
+// ---------- Utilitários ----------
+function update(id, fn) {
+  const p = JSON.parse(JSON.stringify(store.find('projects', id)));
+  fn(p);
+  store.update('projects', id, p);
+}
+const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
+const fmtNum = (n, d = 1) => (n === null || n === undefined || isNaN(n) ? '—' : Number(n).toLocaleString('pt-BR', { maximumFractionDigits: d }));
+const condLabel = (c) => (c ? c.replace('=', ': ') : 'todos os grupos');
+function freqText(s) {
+  if (s.freq === 'daily') return `todo dia, DPN ${s.start}–${s.end || s.start}`;
+  if (s.freq === 'weekly') return `${(s.weekdays || []).map((d) => P.WEEKDAYS[d]).join(', ') || 'sem dias'}, DPN ${s.start}–${s.end || s.start}`;
+  if (s.freq === 'dpns') return `DPN ${s.dpns}`;
+  if (s.freq === 'once') return `uma vez, DPN ${s.start}`;
+  return `contínuo, DPN ${s.start}–${s.end || s.start}`;
+}
+
+function projectProgress(p) {
+  const occ = P.occurrences(p);
+  const done = occ.filter((o) => o.done).length;
+  const t = todayISO();
+  const next = occ.find((o) => !o.done && o.date >= t);
+  const late = occ.filter((o) => !o.done && o.date < t).length;
+  return { total: occ.length, done, next, late };
+}
+
+// ---------- Lista de projetos ----------
+function list() {
+  const ps = store.list('projects');
+  return `<div class="page">
+    <header class="page-head">
+      <div><p class="eyebrow dark">Meu projeto</p><h1>Projetos de pesquisa</h1>
+      <p class="muted">Cada projeto reúne grupos, agenda do protocolo e reagentes. Você pode ter mais de um.</p></div>
+      <button class="btn btn-primary" data-action="new-project">${icon('plus')} Novo projeto</button>
+    </header>
+    ${
+      ps.length
+        ? `<div class="course-grid">${ps
+            .map((p) => {
+              const pr = projectProgress(p);
+              const gt = P.groupTotals(p.design);
+              return `<a class="card course-card project-card" href="#/projeto?id=${p.id}">
+              <div class="course-top"><span class="tile-ico">${icon('flask')}</span>
+                <div class="course-title"><h3 class="clamp">${esc(p.title)}</h3><small class="muted">${esc(typeLabel(p.type))}${p.program ? ' · ' + esc(p.program) : ''}</small></div></div>
+              <div class="course-stats">
+                <div><span>Grupos</span><b>${gt.groups || '—'}</b></div>
+                <div><span>Animais</span><b>${gt.total || '—'}</b></div>
+                <div class="grow"><span>Próxima tarefa</span>${pr.next ? `<b class="ellipsis">${esc(pr.next.step.name)}</b> ${badge(pr.next.date)}` : `<b class="muted">${pr.late ? pr.late + ' atrasada(s)' : '—'}</b>`}</div>
+              </div>
+              ${pr.total ? progressBar((pr.done / pr.total) * 100) : ''}
+            </a>`;
+            })
+            .join('')}</div>`
+        : emptyState('Cadastre seu projeto. Você pode começar do zero ou usar o modelo de estresse na adolescência (EA + doxiciclina), com grupos, protocolo e anticorpos já preenchidos.', 'new-project', 'Novo projeto')
+    }
+  </div>`;
+}
+
+// ---------- Projeto ----------
+const TABS = [
+  ['resumo', 'Resumo', 'note'],
+  ['grupos', 'Grupos e animais', 'users'],
+  ['agenda', 'Agenda do protocolo', 'calendar'],
+  ['reagentes', 'Reagentes e doses', 'flask'],
+];
+
+function render(params) {
+  const id = params.get('id');
+  if (!id) return list();
+  const p = store.find('projects', id);
+  if (!p) return `<div class="page">${emptyState('Projeto não encontrado.', '', '')}</div>`;
+  const tab = TABS.find(([k]) => k === params.get('aba'))?.[0] || 'resumo';
+  const base = `#/projeto?id=${p.id}`;
+  return `<div class="page">
+    <a class="back-link" href="#/projeto">${icon('arrow', 'flip')} Todos os projetos</a>
+    <header class="page-head project-head">
+      <div><p class="eyebrow dark">${esc(typeLabel(p.type))}${p.program ? ' · ' + esc(p.program) : ''}</p><h1 class="project-title">${esc(p.title)}</h1></div>
+      <div class="head-actions">
+        <button class="btn btn-ghost" data-action="edit-project" data-id="${p.id}">${icon('edit')} Editar</button>
+        <button class="icon-btn danger" data-action="delete-project" data-id="${p.id}" title="Excluir projeto" aria-label="Excluir projeto">${icon('trash')}</button>
+      </div>
+    </header>
+    <nav class="tabs" aria-label="Partes do projeto">
+      ${TABS.map(([k, l, ic]) => `<a href="${base}&aba=${k}" class="tab ${k === tab ? 'active' : ''}">${icon(ic)} ${l}</a>`).join('')}
+    </nav>
+    ${{ resumo, grupos, agenda, reagentes }[tab](p, params)}
+  </div>`;
+}
+
+function resumo(p) {
+  const ethics = store.find('ethics', p.ethicsId);
+  const gt = P.groupTotals(p.design);
+  const exps = store.list('experiments').filter((e) => e.projectId === p.id);
+  const specific = String(p.specific || '')
+    .split('\n')
+    .map((x) => x.replace(/^[-•*\s]+/, '').trim())
+    .filter(Boolean);
+  const row = (k, v) => (v ? `<div class="kv"><span>${k}</span><b>${v}</b></div>` : '');
+  return `<div class="grid-2">
+    <div class="stack">
+      <section class="card">
+        <h3 class="sub">Identificação</h3>
+        <div class="kv-list">
+          ${row('Aluno(a)', esc(p.student))}
+          ${row('Orientador(a)', esc(p.advisor))}
+          ${row('Instituição', esc(p.institution))}
+          ${row('Período', p.start || p.end ? `${fmtDate(p.start)} a ${fmtDate(p.end)}` : '')}
+          ${row('Projeto do orientador', p.parentTitle ? `${esc(p.parentTitle)}${p.parentNumber ? ` (nº ${esc(p.parentNumber)})` : ''}` : '')}
+          ${row('Palavras-chave', esc(p.keywords))}
+        </div>
+      </section>
+      ${p.summary ? `<section class="card"><h3 class="sub">Resumo</h3><p class="pre">${esc(p.summary)}</p></section>` : ''}
+      <section class="card">
+        <h3 class="sub">Objetivos</h3>
+        ${p.objective ? `<p class="pre"><b>Geral:</b> ${esc(p.objective)}</p>` : '<p class="muted">Sem objetivo geral cadastrado.</p>'}
+        ${specific.length ? `<ol class="obj-list">${specific.map((o) => `<li>${esc(o)}</li>`).join('')}</ol>` : ''}
+      </section>
+    </div>
+    <div class="stack">
+      <section class="card">
+        <h3 class="sub">${icon('shield')} Ética e animais</h3>
+        ${
+          ethics
+            ? `<p><b>${esc(ethics.kind)} ${esc(ethics.number)}</b> ${ethics.validUntil ? badge(ethics.validUntil) : ''}</p>
+               ${ethics.approved ? `<div class="pace-row"><span>Previstos neste projeto</span><b>${gt.total} de ${ethics.approved} aprovados</b></div>${progressBar((gt.total / ethics.approved) * 100, gt.total > ethics.approved ? 'bar-warn' : '')}` : ''}
+               ${ethics.approved && gt.total > ethics.approved ? `<p class="hint-warn">O projeto prevê mais animais do que o aprovado no ${esc(ethics.kind)}.</p>` : ''}`
+            : `<p class="muted">Nenhum protocolo de ética ligado.</p><button class="btn btn-soft" data-action="edit-project" data-id="${p.id}">${icon('plus')} Ligar CEUA/CEP</button>`
+        }
+      </section>
+      <section class="card">
+        <h3 class="sub">${icon('flask')} Experimentos deste projeto</h3>
+        ${
+          exps.length
+            ? `<ul class="rows">${exps.map((e) => `<li class="row"><div class="row-main"><strong>${esc(e.title)}</strong></div></li>`).join('')}</ul>`
+            : '<p class="muted small">Ao editar um experimento em Planejamento, escolha este projeto para ele aparecer aqui.</p>'
+        }
+      </section>
+      <section class="card shortcuts">
+        <h3 class="sub">Planejar a execução</h3>
+        <a class="tile" href="#/projeto?id=${p.id}&aba=grupos"><span class="tile-ico">${icon('users')}</span><span class="tile-main"><span>Grupos e animais</span><small>${gt.groups} grupos · ${gt.total} animais${gt.boxes ? ` · ${gt.boxes} caixas` : ''}</small></span>${icon('arrow', 'tile-arrow')}</a>
+        <a class="tile" href="#/projeto?id=${p.id}&aba=agenda"><span class="tile-ico">${icon('calendar')}</span><span class="tile-main"><span>Agenda do protocolo</span><small>${(p.protocol?.steps || []).length} etapas · ${(p.cohorts || []).length} lote(s)</small></span>${icon('arrow', 'tile-arrow')}</a>
+        <a class="tile" href="#/projeto?id=${p.id}&aba=reagentes"><span class="tile-ico">${icon('flask')}</span><span class="tile-main"><span>Reagentes e doses</span><small>${(p.reagents || []).length} reagentes · ${(p.doses || []).length} doses</small></span>${icon('arrow', 'tile-arrow')}</a>
+      </section>
+    </div>
+  </div>`;
+}
+
+function grupos(p) {
+  const d = p.design || { factors: [], groups: [] };
+  const gt = P.groupTotals(d);
+  const ethics = store.find('ethics', p.ethicsId);
+  return `<div class="section-head">
+      <div><h2>${icon('users')} Delineamento</h2><p class="muted">Informe os fatores do estudo: o sistema monta todos os grupos possíveis.</p></div>
+      <button class="btn btn-soft" data-action="edit-factors" data-id="${p.id}">${icon('edit')} Editar fatores</button>
+    </div>
+    ${
+      d.factors?.length
+        ? `<div class="chips factor-chips">${d.factors.map((f) => `<span class="pill"><b>${esc(f.name)}:</b>&nbsp;${f.levels.map(esc).join(' / ')}</span>`).join('<span class="times">×</span>')}</div>`
+        : emptyState('Ex.: Estresse (naïve / estressado) × Enriquecimento (sem / com) × Tratamento (salina / doxiciclina) = 8 grupos.', '', '')
+    }
+    <div class="stat-row">
+      <div class="card stat"><span>Grupos</span><b>${gt.groups}</b></div>
+      <div class="card stat"><span>Total de animais</span><b>${gt.total}</b>${gt.missingN ? `<small class="hint-warn">${gt.missingN} grupo(s) sem n</small>` : ''}</div>
+      <div class="card stat"><span>Caixas</span><b>${gt.boxes || '—'}</b><small class="muted">máx. <input class="mini-input" type="number" min="1" value="${esc(d.perBox || '')}" data-proj-field="perBox" data-id="${p.id}" aria-label="Animais por caixa"/> por caixa</small></div>
+      <div class="card stat"><span>CEUA</span>${
+        ethics?.approved
+          ? `<b class="${gt.total > ethics.approved ? 'warn-text' : ''}">${gt.total}/${ethics.approved}</b><small class="muted">${gt.total > ethics.approved ? 'acima do aprovado' : `sobram ${ethics.approved - gt.total}`}</small>`
+          : `<b>—</b><small class="muted">ligue o protocolo em Editar</small>`
+      }</div>
+    </div>
+    ${
+      d.groups?.length
+        ? `<div class="table-wrap"><table class="table groups-table">
+        <thead><tr><th>Grupo</th>${d.factors.map((f) => `<th>${esc(f.name)}</th>`).join('')}<th>n</th><th>Caixas</th></tr></thead>
+        <tbody>${d.groups
+          .map(
+            (g) => `<tr>
+            <td><input class="cell-input" value="${esc(g.name)}" data-group-field="name" data-gid="${g.id}" data-id="${p.id}" aria-label="Nome do grupo"/></td>
+            ${d.factors.map((f) => `<td><span class="pill">${esc(g.levels[f.name])}</span></td>`).join('')}
+            <td><input class="cell-input num" type="number" min="0" value="${esc(g.n ?? '')}" data-group-field="n" data-gid="${g.id}" data-id="${p.id}" aria-label="n do grupo"/></td>
+            <td>${d.perBox && g.n ? Math.ceil(g.n / d.perBox) : '—'}</td></tr>`
+          )
+          .join('')}</tbody></table></div>
+        <p class="muted small">Dica: ao mudar os fatores, os grupos que continuam existindo mantêm o nome e o n.</p>`
+        : ''
+    }`;
+}
+
+function timelineSvg(p) {
+  const steps = p.protocol?.steps || [];
+  if (!steps.length) return '';
+  const [a, b] = P.dpnRange(p);
+  const span = Math.max(1, b - a);
+  const W = 1000, rowH = 30, top = 34, H = top + steps.length * rowH + 30;
+  const x = (d) => 200 + ((d - a) / span) * (W - 220);
+  const c = (p.cohorts || []).find((k) => k.birth);
+  const today = c ? P.dateToDpn(c.birth, todayISO()) : null;
+  const ticks = [];
+  const stepT = span > 60 ? 10 : 5;
+  for (let d = Math.ceil(a / stepT) * stepT; d <= b; d += stepT) ticks.push(d);
+  return `<div class="card tl-card"><svg viewBox="0 0 ${W} ${H}" class="tl-svg" role="img" aria-label="Linha do tempo do protocolo em DPN">
+    ${ticks
+      .map(
+        (d) => `<line x1="${x(d)}" x2="${x(d)}" y1="${top - 8}" y2="${H - 26}" stroke="#e3eeec"/>
+      <text x="${x(d)}" y="${top - 14}" text-anchor="middle" class="tl-tick">DPN ${d}</text>
+      ${c ? `<text x="${x(d)}" y="${H - 8}" text-anchor="middle" class="tl-date">${fmtDate(P.dpnToDate(c.birth, d), { day: '2-digit', month: 'short' })}</text>` : ''}`
+      )
+      .join('')}
+    ${steps
+      .map((s, i) => {
+        const y = top + i * rowH;
+        const label = `<text x="0" y="${y + 19}" class="tl-label">${esc(s.name.length > 30 ? s.name.slice(0, 29) + '…' : s.name)}</text>`;
+        if (s.freq === 'dpns' || s.freq === 'once') {
+          const ds = s.freq === 'once' ? [Number(s.start)] : String(s.dpns || '').split(/[,;\s]+/).map(Number).filter((n) => !isNaN(n));
+          return label + ds.map((d) => `<circle cx="${x(d)}" cy="${y + 15}" r="7" fill="${s.color}"><title>${esc(s.name)} · DPN ${d}</title></circle>`).join('');
+        }
+        const x1 = x(Number(s.start));
+        const x2 = x(Number(s.end || s.start) + 1);
+        return `${label}<rect x="${x1}" y="${y + 6}" width="${Math.max(4, x2 - x1)}" height="18" rx="6" fill="${s.color}" opacity="${s.freq === 'continuous' ? 0.35 : 0.9}"><title>${esc(s.name)} · ${esc(freqText(s))}</title></rect>`;
+      })
+      .join('')}
+    ${today !== null && today >= a && today <= b ? `<line x1="${x(today)}" x2="${x(today)}" y1="${top - 6}" y2="${H - 26}" stroke="#0a2a2c" stroke-width="2.5"/><text x="${x(today)}" y="${top - 1}" text-anchor="middle" class="tl-today">hoje</text>` : ''}
+  </svg>${c ? `<p class="muted small">Datas do ${esc(c.name)} (nascido em ${fmtDate(c.birth)}).</p>` : '<p class="muted small">Cadastre um lote com a data de nascimento para ver as datas reais.</p>'}</div>`;
+}
+
+function agenda(p, params) {
+  const steps = p.protocol?.steps || [];
+  const cohorts = p.cohorts || [];
+  const all = P.occurrences(p);
+  const t = todayISO();
+  const view = params.get('ver') || 'proximas';
+  const base = `#/projeto?id=${p.id}&aba=agenda`;
+  const late = all.filter((o) => !o.done && o.date < t);
+  const shown =
+    view === 'tudo' ? all : view === 'atrasadas' ? late : all.filter((o) => o.date >= t && (daysUntil(o.date) ?? 99) <= 14);
+  const byDate = {};
+  shown.forEach((o) => (byDate[o.date] ||= []).push(o));
+  const weekendCount = all.filter((o) => o.weekend && !o.done && o.date >= t).length;
+
+  return `${timelineSvg(p)}
+  <div class="grid-2 agenda-grid">
+    <section class="section">
+      <header class="section-head">
+        <h2>${icon('calendar')} Agenda por data</h2>
+        <nav class="chips">
+          <a class="chip ${view === 'proximas' ? 'on' : ''}" href="${base}&ver=proximas">Próximos 14 dias</a>
+          <a class="chip ${view === 'atrasadas' ? 'on' : ''}" href="${base}&ver=atrasadas">Atrasadas <b>${late.length}</b></a>
+          <a class="chip ${view === 'tudo' ? 'on' : ''}" href="${base}&ver=tudo">Tudo <b>${all.length}</b></a>
+        </nav>
+      </header>
+      ${weekendCount ? `<p class="weekend-alert">${icon('clock')} ${weekendCount} tarefa(s) futura(s) caem em <b>fim de semana</b>. Combine quem vai ao biotério.</p>` : ''}
+      ${
+        !cohorts.length
+          ? emptyState('Cadastre um lote de animais com a data de nascimento para gerar a agenda com datas reais.', '', '')
+          : Object.keys(byDate).length
+          ? Object.entries(byDate)
+              .map(
+                ([date, list]) => `<div class="day-block ${date === t ? 'is-today' : ''}">
+            <h3 class="day-title">${cap(fmtDate(date, { weekday: 'long', day: '2-digit', month: 'long' }))}${date === t ? ' <span class="badge badge-soon">hoje</span>' : ''}${list[0].weekend ? ' <span class="badge badge-near">fim de semana</span>' : ''}</h3>
+            <ul class="rows">${list
+              .map(
+                (o) => `<li class="row occ ${o.done ? 'is-done' : ''}">
+                <button class="checkbox ${o.done ? 'checked' : ''}" data-action="toggle-occ" data-project="${p.id}" data-occ="${o.id}" aria-label="${o.done ? 'Reabrir' : 'Marcar como feita'}">${o.done ? icon('check') : ''}</button>
+                <span class="occ-dot" style="background:${o.step.color}"></span>
+                <div class="row-main"><strong>${esc(o.step.name)}</strong>
+                  <small class="muted">${esc(o.cohort.name)} · DPN ${o.dpn} · ${o.animals} animais (${esc(condLabel(o.step.appliesTo))})${o.step.time ? ' · ' + esc(o.step.time) : ''}</small>
+                  ${o.step.notes ? `<small class="muted">${esc(o.step.notes)}</small>` : ''}</div>
+                ${o.date < t && !o.done ? '<span class="badge badge-late">atrasada</span>' : ''}
+              </li>`
+              )
+              .join('')}</ul></div>`
+              )
+              .join('')
+          : `<div class="empty small"><p>${view === 'atrasadas' ? 'Nenhuma tarefa atrasada. 🎉' : 'Nada nos próximos 14 dias.'}</p></div>`
+      }
+    </section>
+
+    <div class="stack">
+      <section class="section">
+        <header class="section-head"><h2>${icon('users')} Lotes de animais</h2>
+          <button class="btn btn-soft" data-action="add-cohort" data-id="${p.id}">${icon('plus')} Lote</button></header>
+        ${
+          cohorts.length
+            ? `<ul class="rows">${cohorts
+                .map((c) => {
+                  const dpnToday = P.dateToDpn(c.birth, t);
+                  return `<li class="row"><div class="row-main"><strong>${esc(c.name)}</strong>
+                  <small class="muted">Nascidos em ${fmtDate(c.birth)} · hoje: <b>DPN ${dpnToday}</b>${c.nPerGroup ? ` · ${c.nPerGroup}/grupo` : ''}</small></div>
+                  <div class="row-actions">
+                    <button class="icon-btn" data-action="edit-cohort" data-id="${p.id}" data-cid="${c.id}" aria-label="Editar lote">${icon('edit')}</button>
+                    <button class="icon-btn danger" data-action="delete-cohort" data-id="${p.id}" data-cid="${c.id}" aria-label="Excluir lote">${icon('trash')}</button>
+                  </div></li>`;
+                })
+                .join('')}</ul>`
+            : emptyState('Ex.: Lote 1, nascidos em 12/09. DPN 0 = dia do nascimento.', '', '')
+        }
+      </section>
+      <section class="section">
+        <header class="section-head"><h2>${icon('flask')} Etapas do protocolo</h2>
+          <button class="btn btn-soft" data-action="add-step" data-id="${p.id}">${icon('plus')} Etapa</button></header>
+        ${
+          steps.length
+            ? `<ul class="rows">${steps
+                .map(
+                  (s) => `<li class="row"><span class="occ-dot" style="background:${s.color}"></span>
+              <div class="row-main"><strong>${esc(s.name)}</strong><small class="muted">${esc(freqText(s))} · ${esc(condLabel(s.appliesTo))}${s.time ? ' · ' + esc(s.time) : ''}</small></div>
+              <div class="row-actions">
+                <button class="icon-btn" data-action="edit-step" data-id="${p.id}" data-sid="${s.id}" aria-label="Editar etapa">${icon('edit')}</button>
+                <button class="icon-btn danger" data-action="delete-step" data-id="${p.id}" data-sid="${s.id}" aria-label="Excluir etapa">${icon('trash')}</button>
+              </div></li>`
+                )
+                .join('')}</ul>`
+            : emptyState('Adicione as etapas do protocolo em DPN: enriquecimento, estresse, tratamento, coleta…', '', '')
+        }
+      </section>
+    </div>
+  </div>`;
+}
+
+function reagentes(p) {
+  const gt = P.groupTotals(p.design);
+  return `<section class="section">
+    <header class="section-head"><div><h2>${icon('flask')} Reagentes e anticorpos</h2><p class="muted">Quanto do reagente concentrado você precisa para todas as amostras.</p></div>
+      <button class="btn btn-soft" data-action="add-reagent" data-id="${p.id}">${icon('plus')} Reagente</button></header>
+    ${
+      (p.reagents || []).length
+        ? `<div class="table-wrap"><table class="table">
+      <thead><tr><th>Reagente</th><th>Diluição</th><th>Vol./amostra</th><th>Amostras</th><th>Precisa (concentrado)</th><th>Você tem</th><th></th></tr></thead>
+      <tbody>${p.reagents
+        .map((r) => {
+          const n = P.reagentNeed(r, gt.total);
+          return `<tr><td><b>${esc(r.name)}</b></td><td>${esc(r.dilution)}</td><td>${fmtNum(r.volume, 0)} µL</td><td>${n ? n.samples : '—'}</td>
+          <td>${n ? `<b>${fmtNum(n.stock, 1)} µL</b><small class="muted"> (${fmtNum(n.finalTotal / 1000, 1)} mL de solução, +${r.margin ?? 10}%)</small>` : '—'}</td>
+          <td>${r.stock ? `${fmtNum(r.stock, 0)} µL ${n?.enough === false ? '<span class="badge badge-late">falta</span>' : n?.enough ? '<span class="badge badge-done">ok</span>' : ''}` : '<span class="muted">—</span>'}</td>
+          <td><div class="row-actions"><button class="icon-btn" data-action="edit-reagent" data-id="${p.id}" data-rid="${r.id}" aria-label="Editar">${icon('edit')}</button>
+          <button class="icon-btn danger" data-action="delete-reagent" data-id="${p.id}" data-rid="${r.id}" aria-label="Excluir">${icon('trash')}</button></div></td></tr>`;
+        })
+        .join('')}</tbody></table></div>
+      <p class="muted small">Amostras vazias usam o total de animais do projeto (${gt.total}). Se forem vários preparados por animal, informe o número de amostras.</p>`
+        : emptyState('Ex.: anti-nNOS 1:1000, 500 µL por preparado.', '', '')
+    }
+  </section>
+  <section class="section">
+    <header class="section-head"><div><h2>${icon('flask')} Doses e soluções</h2><p class="muted">Quanto preparar de cada substância (dose em mg/kg).</p></div>
+      <button class="btn btn-soft" data-action="add-dose" data-id="${p.id}">${icon('plus')} Dose</button></header>
+    ${
+      (p.doses || []).length
+        ? `<div class="table-wrap"><table class="table">
+      <thead><tr><th>Substância</th><th>Dose</th><th>Por animal</th><th>Volume/animal</th><th>Animais × vezes</th><th>Total</th><th></th></tr></thead>
+      <tbody>${p.doses
+        .map((d) => {
+          const n = P.doseNeed(d, P.animalsFor(p.design, d.appliesTo));
+          return `<tr><td><b>${esc(d.name)}</b><small class="muted"> ${esc(condLabel(d.appliesTo))}</small></td><td>${fmtNum(d.dose)} mg/kg${d.weight ? ` · ${fmtNum(d.weight, 0)} g` : ''}</td>
+          <td>${n ? fmtNum(n.mgPerAnimal, 2) + ' mg' : '<span class="muted">informe o peso</span>'}</td>
+          <td>${n?.mlPerAnimal ? `${fmtNum(n.mlPerAnimal, 2)} mL <small class="muted">(${fmtNum(n.mlPerKg, 1)} mL/kg)</small>` : '<span class="muted">informe a concentração</span>'}</td>
+          <td>${n ? `${n.animals} × ${n.times}` : '—'}</td>
+          <td>${n ? `<b>${fmtNum(n.totalMg / 1000, 2)} g</b>${n.totalMl ? ` · ${fmtNum(n.totalMl, 0)} mL` : ''}` : '—'}</td>
+          <td><div class="row-actions"><button class="icon-btn" data-action="edit-dose" data-id="${p.id}" data-did="${d.id}" aria-label="Editar">${icon('edit')}</button>
+          <button class="icon-btn danger" data-action="delete-dose" data-id="${p.id}" data-did="${d.id}" aria-label="Excluir">${icon('trash')}</button></div></td></tr>`;
+        })
+        .join('')}</tbody></table></div>
+      <p class="muted small">O peso muda com a idade dos animais: atualize o peso médio ao longo do protocolo. Confira sempre com o protocolo aprovado no CEUA.</p>`
+        : emptyState('Ex.: doxiciclina 40 mg/kg por gavagem, 10 dias.', '', '')
+    }
+  </section>`;
+}
+
+// ---------- Ações (chamadas pelo app) ----------
+const actions = {
+  'new-project': () =>
+    openForm({
+      title: 'Novo projeto',
+      fields: [
+        { name: 'title', label: 'Título do projeto', type: 'textarea', rows: 2, required: true },
+        { name: 'type', label: 'Tipo', type: 'select', options: PROJECT_TYPES },
+        {
+          name: 'template',
+          label: 'Começar com',
+          type: 'select',
+          full: true,
+          options: [
+            ['', 'Projeto em branco'],
+            ['stress', 'Modelo: estresse na adolescência + enriquecimento ambiental + doxiciclina (8 grupos)'],
+          ],
+        },
+        { name: 'advisor', label: 'Orientador(a)' },
+        { name: 'program', label: 'Edital / programa' },
+      ],
+      submitLabel: 'Criar projeto',
+      onSubmit: (v) => {
+        const tpl = v.template === 'stress' ? P.templateAdolescentStress() : null;
+        const design = tpl ? { ...tpl.design } : { factors: [], groups: [], perBox: 4 };
+        design.groups = P.rebuildGroups(design);
+        const proj = store.add('projects', {
+          title: v.title,
+          type: v.type,
+          advisor: v.advisor,
+          program: v.program,
+          status: 'planejamento',
+          design,
+          protocol: { steps: tpl ? tpl.steps : [] },
+          cohorts: [],
+          reagents: tpl ? tpl.reagents : [],
+          doses: tpl ? tpl.doses : [],
+          done: {},
+        });
+        location.hash = `#/projeto?id=${proj.id}&aba=${tpl ? 'agenda' : 'resumo'}`;
+        toast(tpl ? 'Projeto criado com o modelo. Agora cadastre um lote de animais.' : 'Projeto criado');
+      },
+    }),
+  'edit-project': (el) => {
+    const p = store.find('projects', el.dataset.id);
+    openForm({ title: 'Editar projeto', fields: PROJECT_FIELDS(), values: p, onSubmit: (v) => (store.update('projects', p.id, v), toast('Projeto salvo')) });
+  },
+  'delete-project': (el) =>
+    confirmDialog('Excluir este projeto, com grupos, agenda e reagentes?', () => {
+      store.remove('projects', el.dataset.id);
+      location.hash = '#/projeto';
+    }),
+  'edit-factors': (el) => {
+    const p = store.find('projects', el.dataset.id);
+    const d = p.design || {};
+    openForm({
+      title: 'Fatores do estudo',
+      fields: [
+        { name: 'factors', label: 'Fatores e níveis', type: 'textarea', rows: 5, required: true, placeholder: 'Estresse: Naïve, Estressado\nEA: Sem EA, Com EA\nTratamento: Salina, Doxiciclina', hint: 'Um fator por linha, no formato Fator: nível, nível.' },
+        { name: 'defaultN', label: 'n por grupo (para grupos novos)', type: 'number' },
+        { name: 'perBox', label: 'Máximo de animais por caixa', type: 'number' },
+      ],
+      values: { factors: (d.factors || []).map((f) => `${f.name}: ${f.levels.join(', ')}`).join('\n'), defaultN: d.defaultN, perBox: d.perBox },
+      onSubmit: (v) =>
+        update(p.id, (x) => {
+          const factors = v.factors
+            .split('\n')
+            .map((l) => l.split(':'))
+            .filter((a) => a.length >= 2 && a[0].trim())
+            .map(([name, levels]) => ({ name: name.trim(), levels: levels.split(',').map((s) => s.trim()).filter(Boolean) }))
+            .filter((f) => f.levels.length);
+          x.design = { ...(x.design || {}), factors, defaultN: v.defaultN, perBox: v.perBox };
+          x.design.groups = P.rebuildGroups(x.design);
+          toast(`${x.design.groups.length} grupos montados`);
+        }),
+    });
+  },
+  'add-cohort': (el) => cohortForm(el.dataset.id),
+  'edit-cohort': (el) => cohortForm(el.dataset.id, el.dataset.cid),
+  'delete-cohort': (el) => confirmDialog('Excluir este lote?', () => update(el.dataset.id, (x) => (x.cohorts = x.cohorts.filter((c) => c.id !== el.dataset.cid)))),
+  'add-step': (el) => stepForm(el.dataset.id),
+  'edit-step': (el) => stepForm(el.dataset.id, el.dataset.sid),
+  'delete-step': (el) => confirmDialog('Excluir esta etapa do protocolo?', () => update(el.dataset.id, (x) => (x.protocol.steps = x.protocol.steps.filter((s) => s.id !== el.dataset.sid)))),
+  'add-reagent': (el) => subForm(el.dataset.id, 'reagents', REAGENT_FIELDS, 'Novo reagente'),
+  'edit-reagent': (el) => subForm(el.dataset.id, 'reagents', REAGENT_FIELDS, 'Editar reagente', el.dataset.rid),
+  'delete-reagent': (el) => confirmDialog('Excluir este reagente?', () => update(el.dataset.id, (x) => (x.reagents = x.reagents.filter((r) => r.id !== el.dataset.rid)))),
+  'add-dose': (el) => subForm(el.dataset.id, 'doses', DOSE_FIELDS(store.find('projects', el.dataset.id).design), 'Nova dose'),
+  'edit-dose': (el) => subForm(el.dataset.id, 'doses', DOSE_FIELDS(store.find('projects', el.dataset.id).design), 'Editar dose', el.dataset.did),
+  'delete-dose': (el) => confirmDialog('Excluir esta dose?', () => update(el.dataset.id, (x) => (x.doses = x.doses.filter((d) => d.id !== el.dataset.did)))),
+  'toggle-occ': (el) =>
+    update(el.dataset.project, (x) => {
+      x.done = x.done || {};
+      if (x.done[el.dataset.occ]) delete x.done[el.dataset.occ];
+      else x.done[el.dataset.occ] = new Date().toISOString();
+    }),
+};
+
+function cohortForm(pid, cid) {
+  const p = store.find('projects', pid);
+  const c = (p.cohorts || []).find((k) => k.id === cid);
+  openForm({
+    title: c ? 'Editar lote' : 'Novo lote de animais',
+    fields: COHORT_FIELDS,
+    values: c || { name: `Lote ${(p.cohorts || []).length + 1}` },
+    onSubmit: (v) =>
+      update(pid, (x) => {
+        x.cohorts = x.cohorts || [];
+        if (c) x.cohorts = x.cohorts.map((k) => (k.id === cid ? { ...k, ...v } : k));
+        else x.cohorts.push({ id: uid(), ...v });
+        toast('Agenda atualizada com as datas do lote');
+      }),
+  });
+}
+
+function stepForm(pid, sid) {
+  const p = store.find('projects', pid);
+  const s = (p.protocol?.steps || []).find((k) => k.id === sid);
+  const values = s ? { ...s } : { freq: 'daily', color: '#3ee8b5' };
+  (values.weekdays || []).forEach((d) => (values[`wd${d}`] = true));
+  openForm({
+    title: s ? 'Editar etapa' : 'Nova etapa do protocolo',
+    fields: STEP_FIELDS(p.design),
+    values,
+    onSubmit: (v) => {
+      const weekdays = P.WEEKDAYS.map((_, i) => (v[`wd${i}`] ? i : null)).filter((x) => x !== null);
+      P.WEEKDAYS.forEach((_, i) => delete v[`wd${i}`]);
+      if (v.freq === 'weekly' && !weekdays.length) return toast('Escolha ao menos um dia da semana');
+      const step = { ...v, weekdays };
+      update(pid, (x) => {
+        x.protocol = x.protocol || { steps: [] };
+        if (s) x.protocol.steps = x.protocol.steps.map((k) => (k.id === sid ? { ...k, ...step } : k));
+        else x.protocol.steps.push({ id: uid(), ...step });
+      });
+    },
+  });
+}
+
+function subForm(pid, key, fields, titleText, itemId) {
+  const p = store.find('projects', pid);
+  const item = (p[key] || []).find((k) => k.id === itemId);
+  openForm({
+    title: titleText,
+    fields,
+    values: item || {},
+    onSubmit: (v) =>
+      update(pid, (x) => {
+        x[key] = x[key] || [];
+        if (item) x[key] = x[key].map((k) => (k.id === itemId ? { ...k, ...v } : k));
+        else x[key].push({ id: uid(), ...v });
+      }),
+  });
+}
+
+// Edição direto na tabela de grupos e no "por caixa"
+function mount(params) {
+  const root = document.querySelector('#main');
+  if (!root || !params.get('id')) return null;
+  const onChange = (e) => {
+    const el = e.target;
+    if (el.dataset.groupField) {
+      update(el.dataset.id, (x) => {
+        const g = x.design.groups.find((k) => k.id === el.dataset.gid);
+        if (g) g[el.dataset.groupField] = el.dataset.groupField === 'n' ? (el.value === '' ? '' : Number(el.value)) : el.value;
+      });
+    }
+    if (el.dataset.projField === 'perBox') update(el.dataset.id, (x) => (x.design.perBox = el.value === '' ? '' : Number(el.value)));
+  };
+  root.addEventListener('change', onChange);
+  return () => root.removeEventListener('change', onChange);
+}
+
+return { title, PROJECT_TYPES, PROJECT_FIELDS, render, actions, mount };
 })();
 
 // ===== js/views/course.js =====
@@ -4074,6 +5008,7 @@ const cap = (t) => t.charAt(0).toUpperCase() + t.slice(1);
 
 function row(a) {
   const canToggle = a.col === 'tasks' || a.col === 'milestones' || a.col === 'assessments';
+  const isProtocol = a.col === 'protocol';
   return `<li class="row agenda-row u-${urgency(a.date, a.done)} ${a.done ? 'is-done' : ''}">
     <div class="date-chip small"><b>${fmtDate(a.date, { day: '2-digit' })}</b><span>${fmtDate(a.date, { month: 'short' })}</span></div>
     <div class="row-main"><strong>${esc(a.title)}</strong><small class="muted"><span class="tag">${esc(a.kind)}</span> ${esc(a.sub || '')}</small></div>
@@ -4081,9 +5016,11 @@ function row(a) {
     ${
       canToggle
         ? `<button class="icon-btn" title="${a.done ? 'Reabrir' : 'Marcar como concluído'}" data-action="toggle-done" data-col="${a.col}" data-id="${a.id}">${icon('check')}</button>`
+        : isProtocol
+        ? `<button class="icon-btn" title="${a.done ? 'Reabrir' : 'Marcar como feita'}" data-action="toggle-occ" data-project="${a.project}" data-occ="${a.id}">${icon('check')}</button>`
         : ''
     }
-    ${a.col ? `<button class="icon-btn" title="Editar" data-action="edit" data-col="${a.col}" data-id="${a.id}">${icon('edit')}</button>` : `<button class="icon-btn" title="Editar projeto" data-action="edit-profile">${icon('edit')}</button>`}
+    ${isProtocol ? `<a class="icon-btn" title="Abrir agenda do protocolo" href="#/projeto?id=${a.project}&aba=agenda">${icon('arrow')}</a>` : a.col ? `<button class="icon-btn" title="Editar" data-action="edit" data-col="${a.col}" data-id="${a.id}">${icon('edit')}</button>` : `<button class="icon-btn" title="Editar projeto" data-action="edit-profile">${icon('edit')}</button>`}
   </li>`;
 }
 
@@ -5063,6 +6000,7 @@ const { esc, icon, openForm, confirmDialog, toast, closeModal, todayISO } = __m_
 const { SCHEMAS, PROFILE_FIELDS, STAGES, PAPER_STATUS, defaultDuration } = __m_schemas;
 const { demoData } = __m_seed;
 const home = __m_views_home;
+const projects = __m_views_projects;
 const planning = __m_views_planning;
 const advisor = __m_views_advisor;
 const timeline = __m_views_timeline;
@@ -5073,9 +6011,10 @@ const auth = __m_views_auth;
 const { cloud, cloudEnabled, initCloud, onCloudChange, isLocalOnly, setLocalOnly, resolveConflict, syncNow, signOut, pendingChanges } = __m_cloud;
 
 const ROUTES = {
-  inicio: { view: home, label: 'Visão geral', icon: 'home' },
-  planejamento: { view: planning, label: 'Planejamento', icon: 'flask' },
-  orientacao: { view: advisor, label: 'Orientação', icon: 'users' },
+  inicio: { view: home, label: 'Visão geral', icon: 'home', short: 'Início' },
+  projeto: { view: projects, label: 'Meu projeto', icon: 'paper', short: 'Projeto' },
+  planejamento: { view: planning, label: 'Planejamento', icon: 'flask', short: 'Planej.' },
+  orientacao: { view: advisor, label: 'Orientação', icon: 'users', short: 'Orientação' },
   prazos: { view: timeline, label: 'Prazos', icon: 'calendar' },
   'vida-academica': { view: academic, label: 'Vida acadêmica', icon: 'book' },
   acervo: { view: archive, label: 'Acervo', icon: 'archive' },
@@ -5119,7 +6058,7 @@ function shell(name, content) {
   <nav class="bottom-nav" aria-label="Principal (celular)">
     ${links
       .filter(([k]) => k !== 'vida-academica')
-      .map(([k, r]) => `<a href="#/${k}" class="${k === name ? 'active' : ''}">${icon(r.icon)}<span>${r.label.split(' ')[0]}</span></a>`)
+      .map(([k, r]) => `<a href="#/${k}" class="${k === name ? 'active' : ''}">${icon(r.icon)}<span>${r.short || r.label.split(' ')[0]}</span></a>`)
       .join('')}
     <a href="#/vida-academica" class="${name === 'vida-academica' ? 'active' : ''}">${icon('book')}<span>Vida</span></a>
   </nav>`;
@@ -5345,6 +6284,7 @@ const actions = {
     }
   },
   lattes: showLattes,
+  ...projects.actions,
   'sync-now': async () => {
     await syncNow();
     toast(cloud.status === 'synced' ? 'Tudo sincronizado' : 'Sincronizando…');

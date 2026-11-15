@@ -19,6 +19,7 @@ export const COLLECTIONS = [
   'assessments', // provas, trabalhos e apresentações de cada disciplina
   'drawings', // desenhos experimentais
   'articles', // biblioteca de artigos (PubMed, SciELO, manual)
+  'projects', // projetos de pesquisa (grupos, agenda do protocolo, reagentes)
 ];
 
 function empty() {

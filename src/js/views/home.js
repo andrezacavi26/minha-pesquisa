@@ -62,6 +62,8 @@ function todayList() {
       ${
         a.col === 'tasks'
           ? `<button class="checkbox" data-action="toggle-task" data-id="${a.id}" aria-label="Marcar como feita"></button>`
+          : a.col === 'protocol'
+          ? `<button class="checkbox" data-action="toggle-occ" data-project="${a.project}" data-occ="${a.id}" aria-label="Marcar como feita"></button>`
           : a.col === 'assessments'
           ? `<button class="checkbox" data-action="toggle-done" data-col="assessments" data-id="${a.id}" aria-label="Marcar como concluída"></button>`
           : `<span class="kind-dot" title="${esc(a.kind)}"></span>`

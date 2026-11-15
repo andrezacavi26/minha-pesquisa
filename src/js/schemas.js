@@ -69,6 +69,7 @@ export const SCHEMAS = {
       { name: 'groups', label: 'Grupos experimentais', placeholder: 'Ex.: Controle, Estresse, Estresse + tratamento' },
       { name: 'n', label: 'n por grupo', type: 'number' },
       { name: 'ethicsId', label: 'Protocolo de ética vinculado', type: 'select', options: ethicsOptions() },
+      { name: 'projectId', label: 'Projeto', type: 'select', options: [['', '— nenhum —'], ...store.list('projects').map((p) => [p.id, p.title.length > 60 ? p.title.slice(0, 59) + '…' : p.title])] },
       { name: 'deadline', label: 'Meta de conclusão', type: 'date' },
       { name: 'notes', label: 'Notas', type: 'textarea', rows: 2 },
     ],

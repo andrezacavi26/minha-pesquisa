@@ -3,6 +3,7 @@ import { esc, icon, openForm, confirmDialog, toast, closeModal, todayISO } from 
 import { SCHEMAS, PROFILE_FIELDS, STAGES, PAPER_STATUS, defaultDuration } from './schemas.js';
 import { demoData } from './seed.js';
 import * as home from './views/home.js';
+import * as projects from './views/projects.js';
 import * as planning from './views/planning.js';
 import * as advisor from './views/advisor.js';
 import * as timeline from './views/timeline.js';
@@ -13,9 +14,10 @@ import * as auth from './views/auth.js';
 import { cloud, cloudEnabled, initCloud, onCloudChange, isLocalOnly, setLocalOnly, resolveConflict, syncNow, signOut, pendingChanges } from './cloud.js';
 
 const ROUTES = {
-  inicio: { view: home, label: 'Visão geral', icon: 'home' },
-  planejamento: { view: planning, label: 'Planejamento', icon: 'flask' },
-  orientacao: { view: advisor, label: 'Orientação', icon: 'users' },
+  inicio: { view: home, label: 'Visão geral', icon: 'home', short: 'Início' },
+  projeto: { view: projects, label: 'Meu projeto', icon: 'paper', short: 'Projeto' },
+  planejamento: { view: planning, label: 'Planejamento', icon: 'flask', short: 'Planej.' },
+  orientacao: { view: advisor, label: 'Orientação', icon: 'users', short: 'Orientação' },
   prazos: { view: timeline, label: 'Prazos', icon: 'calendar' },
   'vida-academica': { view: academic, label: 'Vida acadêmica', icon: 'book' },
   acervo: { view: archive, label: 'Acervo', icon: 'archive' },
@@ -59,7 +61,7 @@ function shell(name, content) {
   <nav class="bottom-nav" aria-label="Principal (celular)">
     ${links
       .filter(([k]) => k !== 'vida-academica')
-      .map(([k, r]) => `<a href="#/${k}" class="${k === name ? 'active' : ''}">${icon(r.icon)}<span>${r.label.split(' ')[0]}</span></a>`)
+      .map(([k, r]) => `<a href="#/${k}" class="${k === name ? 'active' : ''}">${icon(r.icon)}<span>${r.short || r.label.split(' ')[0]}</span></a>`)
       .join('')}
     <a href="#/vida-academica" class="${name === 'vida-academica' ? 'active' : ''}">${icon('book')}<span>Vida</span></a>
   </nav>`;
@@ -285,6 +287,7 @@ const actions = {
     }
   },
   lattes: showLattes,
+  ...projects.actions,
   'sync-now': async () => {
     await syncNow();
     toast(cloud.status === 'synced' ? 'Tudo sincronizado' : 'Sincronizando…');

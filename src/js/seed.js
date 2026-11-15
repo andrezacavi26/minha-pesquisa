@@ -1,6 +1,7 @@
 // Dados de exemplo (datas relativas a hoje, para a demonstração sempre parecer atual).
 import { uid } from './store.js';
 import { templateGroups } from './views/drawing.js';
+import { templateAdolescentStress, rebuildGroups, occurrences } from './protocol.js';
 
 function d(offsetDays) {
   const x = new Date();
@@ -13,8 +14,28 @@ export function demoData() {
   const e1 = uid(), e2 = uid(), e3 = uid(), ceua = uid(), cImu = uid(), cHist = uid();
   const now = new Date().toISOString();
   const S = (o) => ({ id: uid(), createdAt: now, ...o });
+  // Projeto de exemplo: modelo de estresse na adolescência, lote em andamento (hoje = DPN 34)
+  const tpl = templateAdolescentStress();
+  const design = { ...tpl.design };
+  design.groups = rebuildGroups(design);
+  const project = {
+    id: uid(), createdAt: now, title: 'Análise de neurônios do plexo mioentérico de ratos estressados na adolescência: efeitos do enriquecimento ambiental e da doxiciclina',
+    type: 'doutorado', status: 'andamento', program: 'CAPES', institution: 'Departamento de Histologia', student: 'Marina', advisor: 'Profa. Dra. Helena Costa',
+    parentTitle: '', parentNumber: '', start: d(-60), end: d(300), ethicsId: ceua,
+    summary: 'Avalia se o enriquecimento ambiental, associado à doxiciclina, previne alterações nos neurônios do plexo mioentérico de ratos submetidos a estresse na adolescência.',
+    keywords: 'Eixo cérebro-intestino; Cólon; Sistema nervoso entérico; Plexo mioentérico',
+    objective: 'Avaliar se o estresse na adolescência altera a população e a morfologia dos neurônios do plexo mioentérico e se EA + doxiciclina previnem essas alterações.',
+    specific: 'Investigar o efeito do estresse sobre a densidade e a morfologia dos neurônios totais e nitrérgicos\nAvaliar se o EA atenua as alterações entéricas\nVerificar se a doxiciclina, isolada ou com EA, é neuroprotetora',
+    design, protocol: { steps: tpl.steps }, cohorts: [{ id: uid(), name: 'Lote 1', birth: d(-34), nPerGroup: '', notes: '' }],
+    reagents: tpl.reagents, doses: tpl.doses.map((x) => ({ ...x, weight: 110, conc: 4 })), done: {},
+  };
+  occurrences(project).forEach((o) => {
+    if (o.date < d(0) && !(o.step.name.startsWith('Mudar') && o.dpn >= 31)) project.done[o.id] = now;
+  });
+
   return {
     version: 1,
+    projects: [project],
     profile: {
       name: 'Marina',
       level: 'doutorado',
