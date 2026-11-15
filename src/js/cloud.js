@@ -366,9 +366,9 @@ export async function signIn(email, password) {
   if (error) throw new Error(friendly(error));
 }
 
-export async function signUp(email, password) {
+export async function signUp(email, password, role = 'estudante') {
   await client();
-  const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname } });
+  const { data, error } = await sb.auth.signUp({ email, password, options: { emailRedirectTo: location.origin + location.pathname, data: { role } } });
   if (error) throw new Error(friendly(error));
   // com "Confirm email" ligado, não vem sessão: a pessoa precisa confirmar pelo e-mail
   return { needsConfirmation: !data.session };
