@@ -21,11 +21,26 @@ export function demoData() {
   const project = {
     id: uid(), createdAt: now, title: 'Análise de neurônios do plexo mioentérico de ratos estressados na adolescência: efeitos do enriquecimento ambiental e da doxiciclina',
     type: 'doutorado', status: 'andamento', program: 'CAPES', institution: 'Departamento de Histologia', student: 'Marina', advisor: 'Profa. Dra. Helena Costa',
-    parentTitle: '', parentNumber: '', start: d(-60), end: d(300), ethicsId: ceua,
+    parentTitle: '', parentNumber: '', start: d(-60), end: d(240), ethicsId: ceua,
     summary: 'Avalia se o enriquecimento ambiental, associado à doxiciclina, previne alterações nos neurônios do plexo mioentérico de ratos submetidos a estresse na adolescência.',
     keywords: 'Eixo cérebro-intestino; Cólon; Sistema nervoso entérico; Plexo mioentérico',
     objective: 'Avaliar se o estresse na adolescência altera a população e a morfologia dos neurônios do plexo mioentérico e se EA + doxiciclina previnem essas alterações.',
-    specific: 'Investigar o efeito do estresse sobre a densidade e a morfologia dos neurônios totais e nitrérgicos\nAvaliar se o EA atenua as alterações entéricas\nVerificar se a doxiciclina, isolada ou com EA, é neuroprotetora',
+    objectives: [
+      { id: uid(), text: 'Investigar o efeito do estresse sobre a densidade e a morfologia dos neurônios totais e nitrérgicos', status: 'andamento', experimentId: e1 },
+      { id: uid(), text: 'Avaliar se o enriquecimento ambiental atenua as alterações entéricas', status: 'pendente', experimentId: e1 },
+      { id: uid(), text: 'Verificar se a doxiciclina, isolada ou com EA, é neuroprotetora', status: 'pendente', experimentId: '' },
+    ],
+    activities: (() => {
+      const ym = (off) => { const x = new Date(); x.setDate(1); x.setMonth(x.getMonth() + off); return `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}`; };
+      const A = (name, a, b, status) => ({ id: uid(), name, start: ym(a), end: ym(b), status });
+      return [
+        A('Levantamento bibliográfico', -2, -2, 'done'),
+        A('Protocolo experimental (EA, estresse e tratamento)', -1, 1, 'doing'),
+        A('Imunofluorescência', 1, 4, 'todo'),
+        A('Análise dos resultados', 5, 6, 'todo'),
+        A('Relatório final', 7, 9, 'todo'),
+      ];
+    })(),
     design, protocol: { steps: tpl.steps }, cohorts: [{ id: uid(), name: 'Lote 1', birth: d(-34), nPerGroup: '', notes: '' }],
     reagents: tpl.reagents, doses: tpl.doses.map((x) => ({ ...x, weight: 110, conc: 4 })), done: {},
   };
@@ -33,6 +48,7 @@ export function demoData() {
     if (o.date < d(0) && !(o.step.name.startsWith('Mudar') && o.dpn >= 31)) project.done[o.id] = now;
   });
 
+  const projectId = project.id;
   return {
     version: 1,
     projects: [project],
@@ -97,6 +113,8 @@ export function demoData() {
       S({ title: 'Exame de qualificação', date: d(120), kind: 'marco', notes: 'Banca a definir', done: false }),
       S({ title: 'Proficiência em inglês', date: d(-300), kind: 'marco', notes: '', done: true }),
       S({ title: 'Relatório anual CAPES', date: d(22), kind: 'relatorio', notes: 'Pela Plataforma Sucupira', done: false }),
+      S({ title: 'Relatório parcial do projeto', date: d(45), kind: 'relatorio', notes: 'Enviar ao orientador 1 semana antes', done: false, projectId }),
+      S({ title: 'Apresentação no evento de iniciação/pós', date: d(110), kind: 'evento', notes: 'Pôster com resultados preliminares', done: false, projectId }),
       S({ title: 'Estágio docência', date: d(200), kind: 'marco', notes: '', done: false }),
     ],
     courses: [

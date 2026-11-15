@@ -4,26 +4,29 @@ import { stagesOf, experimentProgress } from '../metrics.js';
 import { STAGE_STATUS } from '../schemas.js';
 import * as drawing from './drawing.js';
 import * as course from './course.js';
+import * as projects from './projects.js';
 
 export const title = 'Planejamento';
 
 export function render(params) {
   if (params.get('desenho')) return drawing.render(params);
-  const aba = params.get('aba') === 'academico' ? 'academico' : 'experimental';
+  const aba = ['academico', 'protocolo'].includes(params.get('aba')) ? params.get('aba') : 'experimental';
   return `<div class="page">
     <header class="page-head">
-      <div><p class="eyebrow dark">Planejamento</p><h1>${aba === 'academico' ? 'Planejamento acadêmico' : 'Planejamento experimental'}</h1></div>
+      <div><p class="eyebrow dark">Planejamento</p><h1>${{ academico: 'Planejamento acadêmico', protocolo: 'Protocolo e animais', experimental: 'Planejamento experimental' }[aba]}</h1></div>
     </header>
     <nav class="subtabs" aria-label="Tipo de planejamento">
       <a href="#/planejamento?aba=experimental" class="subtab ${aba === 'experimental' ? 'active' : ''}">${icon('flask')} Planejamento experimental</a>
+      <a href="#/planejamento?aba=protocolo" class="subtab ${aba === 'protocolo' ? 'active' : ''}">${icon('calendar')} Protocolo e animais</a>
       <a href="#/planejamento?aba=academico" class="subtab ${aba === 'academico' ? 'active' : ''}">${icon('book')} Planejamento acadêmico</a>
     </nav>
-    ${aba === 'academico' ? (params.get('disc') ? course.renderCourse(params) : course.renderList()) : experimental(params)}
+    ${aba === 'academico' ? (params.get('disc') ? course.renderCourse(params) : course.renderList()) : aba === 'protocolo' ? projects.protocolArea(params) : experimental(params)}
   </div>`;
 }
 
 export function mount(params) {
   if (params.get('desenho')) return drawing.mount(params);
+  if (params.get('aba') === 'protocolo') return projects.mount(params);
   return null;
 }
 

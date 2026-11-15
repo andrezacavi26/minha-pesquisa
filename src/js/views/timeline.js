@@ -68,7 +68,7 @@ function row(a) {
         ? `<button class="icon-btn" title="${a.done ? 'Reabrir' : 'Marcar como feita'}" data-action="toggle-occ" data-project="${a.project}" data-occ="${a.id}">${icon('check')}</button>`
         : ''
     }
-    ${isProtocol ? `<a class="icon-btn" title="Abrir agenda do protocolo" href="#/projeto?id=${a.project}&aba=agenda">${icon('arrow')}</a>` : a.col ? `<button class="icon-btn" title="Editar" data-action="edit" data-col="${a.col}" data-id="${a.id}">${icon('edit')}</button>` : `<button class="icon-btn" title="Editar projeto" data-action="edit-profile">${icon('edit')}</button>`}
+    ${isProtocol ? `<a class="icon-btn" title="Abrir agenda do protocolo" href="#/planejamento?aba=protocolo&id=${a.project}&parte=agenda">${icon('arrow')}</a>` : a.col ? `<button class="icon-btn" title="Editar" data-action="edit" data-col="${a.col}" data-id="${a.id}">${icon('edit')}</button>` : `<button class="icon-btn" title="Editar projeto" data-action="edit-profile">${icon('edit')}</button>`}
   </li>`;
 }
 

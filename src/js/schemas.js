@@ -57,6 +57,7 @@ export const SCHEMAS = {
           ['outro', 'Outro'],
         ],
       },
+      { name: 'projectId', label: 'Projeto', type: 'select', options: [['', '— nenhum —'], ...store.list('projects').map((p) => [p.id, p.title.length > 60 ? p.title.slice(0, 59) + '…' : p.title])] },
       { name: 'notes', label: 'Observações', type: 'textarea', rows: 2 },
       { name: 'done', label: 'Já concluído', type: 'checkbox' },
     ],

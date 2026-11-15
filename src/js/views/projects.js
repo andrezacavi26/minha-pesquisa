@@ -3,6 +3,7 @@
 import { store, uid } from '../store.js';
 import { esc, icon, fmtDate, badge, emptyState, todayISO, openForm, confirmDialog, toast, progressBar, daysUntil } from '../ui.js';
 import * as P from '../protocol.js';
+import { SCHEMAS } from '../schemas.js';
 
 export const title = 'Meu projeto';
 
@@ -32,7 +33,6 @@ export const PROJECT_FIELDS = () => [
   { name: 'summary', label: 'Resumo', type: 'textarea', rows: 4 },
   { name: 'keywords', label: 'Palavras-chave', full: true },
   { name: 'objective', label: 'Objetivo geral', type: 'textarea', rows: 3 },
-  { name: 'specific', label: 'Objetivos específicos', type: 'textarea', rows: 4, hint: 'Um por linha.' },
 ];
 
 const STEP_FIELDS = (design) => {
@@ -109,125 +109,309 @@ function projectProgress(p) {
   return { total: occ.length, done, next, late };
 }
 
-// ---------- Lista de projetos ----------
+// ---------- Painel do projeto (Meu projeto) ----------
+export const protoUrl = (id, parte = 'agenda', extra = '') => `#/planejamento?aba=protocolo&id=${id}&parte=${parte}${extra}`;
+
+const ymNow = () => todayISO().slice(0, 7);
+const ymAdd = (ym, n) => {
+  const [y, m] = ym.split('-').map(Number);
+  const d = new Date(y, m - 1 + n, 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
+};
+const ymDiff = (a, b) => {
+  const [y1, m1] = a.split('-').map(Number);
+  const [y2, m2] = b.split('-').map(Number);
+  return (y2 - y1) * 12 + (m2 - m1);
+};
+const ymLabel = (ym) => cap(new Date(Number(ym.slice(0, 4)), Number(ym.slice(5, 7)) - 1, 1).toLocaleDateString('pt-BR', { month: 'short' }).replace('.', ''));
+
+const ACT_STATUS = { todo: 'Não iniciada', doing: 'Em andamento', done: 'Concluída' };
+const OBJ_STATUS = [
+  ['pendente', 'Sem dados ainda'],
+  ['andamento', 'Em andamento'],
+  ['respondido', 'Respondido'],
+];
+
+// Cronograma típico de IC (12 meses), como o do projeto PROIC
+export function icActivities(startYm) {
+  const A = (name, from, to) => ({ id: uid(), name, start: ymAdd(startYm, from), end: ymAdd(startYm, to), status: 'todo' });
+  return [
+    A('Levantamento bibliográfico', 0, 0),
+    A('Protocolo experimental (EA, estresse e tratamento)', 1, 4),
+    A('Imunofluorescência', 4, 7),
+    A('Análise dos resultados', 8, 9),
+    A('Relatório final', 10, 11),
+  ];
+}
+
+function activityState(a) {
+  const now = ymNow();
+  if (a.status === 'done') return 'done';
+  if (a.end && a.end < now) return 'late';
+  if (a.status === 'todo' && a.start && a.start <= now) return 'should-start';
+  return a.status === 'doing' ? 'doing' : 'todo';
+}
+
+export function projectHealth(p) {
+  const acts = p.activities || [];
+  const months = (a) => Math.max(1, ymDiff(a.start, a.end) + 1);
+  const totalW = acts.reduce((s, a) => s + months(a), 0);
+  const doneW = acts.reduce((s, a) => s + months(a) * (a.status === 'done' ? 1 : a.status === 'doing' ? 0.5 : 0), 0);
+  const progress = totalW ? (doneW / totalW) * 100 : 0;
+  let elapsed = 0;
+  let monthNow = null;
+  let monthsTotal = null;
+  if (p.start && p.end) {
+    const tot = (daysUntil(p.end) ?? 0) - (daysUntil(p.start) ?? 0);
+    elapsed = tot > 0 ? Math.max(0, Math.min(100, (-(daysUntil(p.start) ?? 0) / tot) * 100)) : 0;
+    monthsTotal = ymDiff(p.start.slice(0, 7), p.end.slice(0, 7)) + 1;
+    monthNow = Math.max(0, Math.min(monthsTotal, ymDiff(p.start.slice(0, 7), ymNow()) + 1));
+  }
+  const late = acts.filter((a) => activityState(a) === 'late');
+  const shouldStart = acts.filter((a) => activityState(a) === 'should-start');
+  const current = acts.filter((a) => a.status === 'doing');
+  let tone = 'neutral', text = 'Cadastre o cronograma para acompanhar o ritmo.';
+  if (acts.length) {
+    const diff = progress - elapsed;
+    if (late.length) (tone = 'bad'), (text = `${late.length} atividade(s) passaram do prazo do cronograma.`);
+    else if (diff >= -10) (tone = 'good'), (text = 'No ritmo do cronograma.');
+    else if (diff >= -25) (tone = 'warn'), (text = 'Um pouco atrás do cronograma.');
+    else (tone = 'bad'), (text = 'Bem atrás do cronograma. Vale replanejar com o orientador.');
+  }
+  return { progress, elapsed, monthNow, monthsTotal, late, shouldStart, current, tone, text };
+}
+
+export function getObjectives(p) {
+  if (Array.isArray(p.objectives)) return p.objectives;
+  return String(p.specific || '')
+    .split('\n')
+    .map((x) => x.replace(/^[-•*\s]+/, '').trim())
+    .filter(Boolean)
+    .map((text, i) => ({ id: 'o' + i, text, status: 'pendente', experimentId: '' }));
+}
+
 function list() {
   const ps = store.list('projects');
   return `<div class="page">
     <header class="page-head">
-      <div><p class="eyebrow dark">Meu projeto</p><h1>Projetos de pesquisa</h1>
-      <p class="muted">Cada projeto reúne grupos, agenda do protocolo e reagentes. Você pode ter mais de um.</p></div>
+      <div><p class="eyebrow dark">Meu projeto</p><h1>Andamento da pesquisa</h1>
+      <p class="muted">Em que fase cada projeto está, o que falta e o que vem a seguir.</p></div>
       <button class="btn btn-primary" data-action="new-project">${icon('plus')} Novo projeto</button>
     </header>
     ${
       ps.length
         ? `<div class="course-grid">${ps
             .map((p) => {
-              const pr = projectProgress(p);
-              const gt = P.groupTotals(p.design);
+              const h = projectHealth(p);
+              const objs = getObjectives(p);
               return `<a class="card course-card project-card" href="#/projeto?id=${p.id}">
-              <div class="course-top"><span class="tile-ico">${icon('flask')}</span>
+              <div class="course-top"><span class="tile-ico">${icon('paper')}</span>
                 <div class="course-title"><h3 class="clamp">${esc(p.title)}</h3><small class="muted">${esc(typeLabel(p.type))}${p.program ? ' · ' + esc(p.program) : ''}</small></div></div>
               <div class="course-stats">
-                <div><span>Grupos</span><b>${gt.groups || '—'}</b></div>
-                <div><span>Animais</span><b>${gt.total || '—'}</b></div>
-                <div class="grow"><span>Próxima tarefa</span>${pr.next ? `<b class="ellipsis">${esc(pr.next.step.name)}</b> ${badge(pr.next.date)}` : `<b class="muted">${pr.late ? pr.late + ' atrasada(s)' : '—'}</b>`}</div>
+                <div><span>Fase</span><b>${h.monthNow ? `Mês ${h.monthNow}/${h.monthsTotal}` : '—'}</b></div>
+                <div><span>Objetivos</span><b>${objs.filter((o) => o.status === 'respondido').length}/${objs.length}</b></div>
+                <div class="grow"><span>Agora</span><b class="ellipsis">${h.current[0] ? esc(h.current[0].name) : h.late.length ? `${h.late.length} atrasada(s)` : '—'}</b></div>
               </div>
-              ${pr.total ? progressBar((pr.done / pr.total) * 100) : ''}
+              <div class="pace-row"><span>Cronograma</span><b>${Math.round(h.progress)}%</b></div>${progressBar(h.progress)}
+              <p class="pace-msg tone-${h.tone}">${esc(h.text)}</p>
             </a>`;
             })
             .join('')}</div>`
-        : emptyState('Cadastre seu projeto. Você pode começar do zero ou usar o modelo de estresse na adolescência (EA + doxiciclina), com grupos, protocolo e anticorpos já preenchidos.', 'new-project', 'Novo projeto')
+        : emptyState('Cadastre seu projeto para acompanhar fase, cronograma, objetivos e entregas. Há um modelo de cronograma de IC de 12 meses.', 'new-project', 'Novo projeto')
     }
   </div>`;
 }
-
-// ---------- Projeto ----------
-const TABS = [
-  ['resumo', 'Resumo', 'note'],
-  ['grupos', 'Grupos e animais', 'users'],
-  ['agenda', 'Agenda do protocolo', 'calendar'],
-  ['reagentes', 'Reagentes e doses', 'flask'],
-];
 
 export function render(params) {
   const id = params.get('id');
   if (!id) return list();
   const p = store.find('projects', id);
   if (!p) return `<div class="page">${emptyState('Projeto não encontrado.', '', '')}</div>`;
-  const tab = TABS.find(([k]) => k === params.get('aba'))?.[0] || 'resumo';
-  const base = `#/projeto?id=${p.id}`;
+  return dashboard(p);
+}
+
+function gantt(p) {
+  const acts = p.activities || [];
+  if (!acts.length)
+    return `<div class="empty small"><p>Sem cronograma. Use o modelo de IC (12 meses) ou cadastre as atividades.</p>
+      <div class="head-actions center"><button class="btn btn-soft" data-action="add-activity" data-id="${p.id}">${icon('plus')} Atividade</button>
+      <button class="btn btn-ghost" data-action="ic-schedule" data-id="${p.id}">Usar cronograma típico de IC</button></div></div>`;
+  const first = (p.start || acts.map((a) => a.start).sort()[0] + '-01').slice(0, 7);
+  const lastAct = acts.map((a) => a.end).sort().slice(-1)[0];
+  const last = [p.end ? p.end.slice(0, 7) : '', lastAct].sort().slice(-1)[0];
+  const n = Math.max(1, ymDiff(first, last) + 1);
+  const months = Array.from({ length: n }, (_, i) => ymAdd(first, i));
+  const nowIdx = ymDiff(first, ymNow());
+  const stateLabel = { done: 'Concluída', doing: 'Em andamento', late: 'Atrasada', 'should-start': 'Deveria ter começado', todo: 'Não iniciada' };
+  return `<div class="gantt" style="--n:${n}">
+    <div class="g-row g-head"><div class="g-name"></div>${months.map((m, i) => `<div class="g-cell ${i === nowIdx ? 'now' : ''}">${ymLabel(m)}${m.endsWith('-01') || i === 0 ? `<small>${m.slice(0, 4)}</small>` : ''}</div>`).join('')}</div>
+    ${acts
+      .map((a) => {
+        const st = activityState(a);
+        const s = Math.max(0, ymDiff(first, a.start));
+        const e = Math.min(n - 1, ymDiff(first, a.end));
+        return `<div class="g-row">
+          <div class="g-name">
+            <button class="g-status st-${st}" data-action="cycle-activity" data-id="${p.id}" data-aid="${a.id}" title="${stateLabel[st]}. Clique para mudar">${a.status === 'done' ? icon('check') : ''}</button>
+            <span class="g-title"><b>${esc(a.name)}</b><small class="g-${st}">${stateLabel[st]}</small></span>
+            <button class="icon-btn" data-action="edit-activity" data-id="${p.id}" data-aid="${a.id}" aria-label="Editar atividade">${icon('edit')}</button>
+          </div>
+          ${months.map((m, i) => `<div class="g-cell ${i === nowIdx ? 'now' : ''}">${i === s ? `<span class="g-bar b-${st}" style="width:calc(${e - s + 1} * 100% + ${(e - s) * 2}px)"></span>` : ''}</div>`).join('')}
+        </div>`;
+      })
+      .join('')}
+  </div>
+  <div class="gantt-foot"><button class="btn btn-soft sm" data-action="add-activity" data-id="${p.id}">${icon('plus')} Atividade</button><small class="muted">Clique no círculo para marcar: não iniciada → em andamento → concluída.</small></div>`;
+}
+
+function dashboard(p) {
+  const h = projectHealth(p);
+  const objs = getObjectives(p);
+  const exps = Object.fromEntries(store.list('experiments').map((e) => [e.id, e]));
+  const t = todayISO();
+  const deliveries = store
+    .list('milestones')
+    .filter((m) => m.projectId === p.id && !m.done)
+    .sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  const occ = P.occurrences(p);
+  const occToday = occ.filter((o) => o.date === t && !o.done).length;
+  const occWeek = occ.filter((o) => !o.done && o.date >= t && (daysUntil(o.date) ?? 99) <= 7).length;
+  const occLate = occ.filter((o) => !o.done && o.date < t).length;
+  const ethics = store.find('ethics', p.ethicsId);
+  const gt = P.groupTotals(p.design);
+
+  const alerts = [];
+  h.late.forEach((a) => alerts.push(['bad', `“${a.name}” passou do prazo (${ymLabel(a.end)}/${a.end.slice(0, 4)}).`]));
+  h.shouldStart.forEach((a) => alerts.push(['warn', `“${a.name}” deveria ter começado em ${ymLabel(a.start)}.`]));
+  if (occLate) alerts.push(['bad', `${occLate} tarefa(s) do protocolo atrasada(s).`]);
+  if (ethics?.validUntil && (daysUntil(ethics.validUntil) ?? 999) <= 60) alerts.push(['warn', `${ethics.kind} ${ethics.number} vence ${fmtDate(ethics.validUntil)}.`]);
+  if (ethics?.approved && gt.total > ethics.approved) alerts.push(['bad', `O delineamento prevê ${gt.total} animais, e o ${ethics.kind} aprovou ${ethics.approved}.`]);
+  const noExp = objs.filter((o) => !o.experimentId && o.status !== 'respondido').length;
+  if (noExp) alerts.push(['info', `${noExp} objetivo(s) ainda sem experimento ligado.`]);
+
   return `<div class="page">
     <a class="back-link" href="#/projeto">${icon('arrow', 'flip')} Todos os projetos</a>
     <header class="page-head project-head">
-      <div><p class="eyebrow dark">${esc(typeLabel(p.type))}${p.program ? ' · ' + esc(p.program) : ''}</p><h1 class="project-title">${esc(p.title)}</h1></div>
+      <div><p class="eyebrow dark">${esc(typeLabel(p.type))}${p.program ? ' · ' + esc(p.program) : ''}</p><h1 class="project-title">${esc(p.title)}</h1>
+      <p class="muted">${[p.student, p.advisor ? 'orientação: ' + p.advisor : '', p.start && p.end ? `${fmtDate(p.start)} a ${fmtDate(p.end)}` : ''].filter(Boolean).map(esc).join(' · ')}</p></div>
       <div class="head-actions">
-        <button class="btn btn-ghost" data-action="edit-project" data-id="${p.id}">${icon('edit')} Editar</button>
+        <button class="btn btn-ghost" data-action="edit-project" data-id="${p.id}">${icon('edit')} Dados do projeto</button>
         <button class="icon-btn danger" data-action="delete-project" data-id="${p.id}" title="Excluir projeto" aria-label="Excluir projeto">${icon('trash')}</button>
       </div>
     </header>
-    <nav class="tabs" aria-label="Partes do projeto">
-      ${TABS.map(([k, l, ic]) => `<a href="${base}&aba=${k}" class="tab ${k === tab ? 'active' : ''}">${icon(ic)} ${l}</a>`).join('')}
-    </nav>
-    ${{ resumo, grupos, agenda, reagentes }[tab](p, params)}
+
+    <section class="card phase-card">
+      <div class="phase-main">
+        <span class="phase-label">Fase atual</span>
+        <b class="phase-now">${h.current.length ? h.current.map((a) => esc(a.name)).join(' · ') : h.late[0] ? esc(h.late[0].name) + ' (atrasada)' : (p.activities || []).length ? 'Nenhuma atividade em andamento' : 'Cronograma não cadastrado'}</b>
+        ${h.monthNow ? `<span class="phase-month">Mês ${h.monthNow} de ${h.monthsTotal}</span>` : ''}
+      </div>
+      <div class="phase-bars">
+        <div class="pace-row"><span>Tempo do projeto</span><b>${Math.round(h.elapsed)}%</b></div>${progressBar(h.elapsed, 'bar-time')}
+        <div class="pace-row"><span>Cronograma realizado</span><b>${Math.round(h.progress)}%</b></div>${progressBar(h.progress)}
+        <p class="pace-msg tone-${h.tone}">${esc(h.text)}</p>
+      </div>
+    </section>
+
+    <div class="grid-2 dash-grid">
+      <section class="section">
+        <header class="section-head"><h2>${icon('calendar')} Cronograma</h2><span class="muted small">planejado × realizado</span></header>
+        <div class="card gantt-card">${gantt(p)}</div>
+
+        <header class="section-head obj-head"><h2>${icon('check')} Objetivos</h2>
+          <button class="btn btn-soft sm" data-action="add-objective" data-id="${p.id}">${icon('plus')} Objetivo</button></header>
+        ${p.objective ? `<p class="obj-general"><b>Geral:</b> ${esc(p.objective)}</p>` : ''}
+        ${
+          objs.length
+            ? `<ul class="rows">${objs
+                .map((o, i) => {
+                  const e = exps[o.experimentId];
+                  return `<li class="row obj-row">
+              <span class="obj-num">${i + 1}</span>
+              <div class="row-main"><strong>${esc(o.text)}</strong>
+                <small class="muted">${e ? `${icon('flask')} ${esc(e.title)}` : 'Nenhum experimento ligado'}</small></div>
+              <select class="select-sm obj-status os-${o.status}" data-obj-status="${o.id}" data-id="${p.id}" aria-label="Status do objetivo">
+                ${OBJ_STATUS.map(([k, l]) => `<option value="${k}" ${o.status === k ? 'selected' : ''}>${l}</option>`).join('')}
+              </select>
+              <button class="icon-btn" data-action="edit-objective" data-id="${p.id}" data-oid="${o.id}" aria-label="Editar objetivo">${icon('edit')}</button>
+            </li>`;
+                })
+                .join('')}</ul>`
+            : '<div class="empty small"><p>Cadastre os objetivos específicos e ligue cada um ao experimento que vai respondê-lo.</p></div>'
+        }
+      </section>
+
+      <div class="stack">
+        <section class="card">
+          <header class="card-head"><h2 class="h-sm">Próximas entregas</h2>
+            <button class="btn btn-soft sm" data-action="add-delivery" data-id="${p.id}">${icon('plus')} Entrega</button></header>
+          ${
+            deliveries.length
+              ? `<ul class="rows">${deliveries
+                  .slice(0, 5)
+                  .map(
+                    (m) => `<li class="row"><div class="date-chip small"><b>${fmtDate(m.date, { day: '2-digit' })}</b><span>${fmtDate(m.date, { month: 'short' })}</span></div>
+                  <div class="row-main"><strong>${esc(m.title)}</strong>${m.notes ? `<small class="muted">${esc(m.notes)}</small>` : ''}</div>${badge(m.date)}
+                  <button class="icon-btn" data-action="edit" data-col="milestones" data-id="${m.id}" aria-label="Editar">${icon('edit')}</button></li>`
+                  )
+                  .join('')}</ul>`
+              : '<p class="muted small">Relatório parcial, relatório final, qualificação, apresentação no evento de IC…</p>'
+          }
+        </section>
+
+        <section class="card">
+          <header class="card-head"><h2 class="h-sm">Protocolo experimental</h2>
+            <a class="mini-link" href="${protoUrl(p.id, 'agenda')}">Abrir ${icon('arrow')}</a></header>
+          ${
+            (p.protocol?.steps || []).length
+              ? `<div class="proto-mini">
+                <a href="${protoUrl(p.id, 'agenda')}"><b>${occToday}</b><span>hoje</span></a>
+                <a href="${protoUrl(p.id, 'agenda')}"><b>${occWeek}</b><span>próximos 7 dias</span></a>
+                <a href="${protoUrl(p.id, 'agenda', '&ver=atrasadas')}" class="${occLate ? 'late' : ''}"><b>${occLate}</b><span>atrasadas</span></a>
+              </div>
+              <p class="muted small">${gt.groups} grupos · ${gt.total} animais · ${(p.cohorts || []).length} lote(s)</p>`
+              : `<p class="muted small">Agenda do protocolo, grupos e reagentes ficam em Planejamento.</p><a class="btn btn-soft sm" href="${protoUrl(p.id, 'agenda')}">Montar protocolo</a>`
+          }
+        </section>
+
+        <section class="card">
+          <header class="card-head"><h2 class="h-sm">Alertas</h2></header>
+          ${
+            alerts.length
+              ? `<ul class="alerts">${alerts.map(([tone, txt]) => `<li class="al-${tone}">${esc(txt)}</li>`).join('')}</ul>`
+              : '<p class="muted small">Nada pedindo atenção agora. ✓</p>'
+          }
+        </section>
+      </div>
+    </div>
   </div>`;
 }
 
-function resumo(p) {
-  const ethics = store.find('ethics', p.ethicsId);
-  const gt = P.groupTotals(p.design);
-  const exps = store.list('experiments').filter((e) => e.projectId === p.id);
-  const specific = String(p.specific || '')
-    .split('\n')
-    .map((x) => x.replace(/^[-•*\s]+/, '').trim())
-    .filter(Boolean);
-  const row = (k, v) => (v ? `<div class="kv"><span>${k}</span><b>${v}</b></div>` : '');
-  return `<div class="grid-2">
-    <div class="stack">
-      <section class="card">
-        <h3 class="sub">Identificação</h3>
-        <div class="kv-list">
-          ${row('Aluno(a)', esc(p.student))}
-          ${row('Orientador(a)', esc(p.advisor))}
-          ${row('Instituição', esc(p.institution))}
-          ${row('Período', p.start || p.end ? `${fmtDate(p.start)} a ${fmtDate(p.end)}` : '')}
-          ${row('Projeto do orientador', p.parentTitle ? `${esc(p.parentTitle)}${p.parentNumber ? ` (nº ${esc(p.parentNumber)})` : ''}` : '')}
-          ${row('Palavras-chave', esc(p.keywords))}
-        </div>
-      </section>
-      ${p.summary ? `<section class="card"><h3 class="sub">Resumo</h3><p class="pre">${esc(p.summary)}</p></section>` : ''}
-      <section class="card">
-        <h3 class="sub">Objetivos</h3>
-        ${p.objective ? `<p class="pre"><b>Geral:</b> ${esc(p.objective)}</p>` : '<p class="muted">Sem objetivo geral cadastrado.</p>'}
-        ${specific.length ? `<ol class="obj-list">${specific.map((o) => `<li>${esc(o)}</li>`).join('')}</ol>` : ''}
-      </section>
+// ---------- Protocolo e animais (dentro de Planejamento) ----------
+const PTABS = [
+  ['agenda', 'Agenda do protocolo', 'calendar'],
+  ['grupos', 'Grupos e animais', 'users'],
+  ['reagentes', 'Reagentes e doses', 'flask'],
+];
+
+export function protocolArea(params) {
+  const ps = store.list('projects');
+  if (!ps.length)
+    return emptyState('O protocolo fica ligado a um projeto. Crie um projeto (pode usar o modelo de estresse na adolescência) para montar grupos, agenda e reagentes.', 'new-project', 'Novo projeto');
+  const p = store.find('projects', params.get('id')) || ps[0];
+  const parte = PTABS.find(([k]) => k === params.get('parte'))?.[0] || 'agenda';
+  return `<div class="proto-top">
+      <label class="opt">Projeto
+        <select class="select-sm proto-select" data-proto-project aria-label="Projeto">
+          ${ps.map((x) => `<option value="${x.id}" ${x.id === p.id ? 'selected' : ''}>${esc(x.title.length > 70 ? x.title.slice(0, 69) + '…' : x.title)}</option>`).join('')}
+        </select>
+      </label>
+      ${(p.protocol?.steps || []).length ? '' : `<button class="btn btn-ghost sm" data-action="use-stress-template" data-id="${p.id}">Usar modelo: estresse na adolescência + EA + doxiciclina</button>`}
     </div>
-    <div class="stack">
-      <section class="card">
-        <h3 class="sub">${icon('shield')} Ética e animais</h3>
-        ${
-          ethics
-            ? `<p><b>${esc(ethics.kind)} ${esc(ethics.number)}</b> ${ethics.validUntil ? badge(ethics.validUntil) : ''}</p>
-               ${ethics.approved ? `<div class="pace-row"><span>Previstos neste projeto</span><b>${gt.total} de ${ethics.approved} aprovados</b></div>${progressBar((gt.total / ethics.approved) * 100, gt.total > ethics.approved ? 'bar-warn' : '')}` : ''}
-               ${ethics.approved && gt.total > ethics.approved ? `<p class="hint-warn">O projeto prevê mais animais do que o aprovado no ${esc(ethics.kind)}.</p>` : ''}`
-            : `<p class="muted">Nenhum protocolo de ética ligado.</p><button class="btn btn-soft" data-action="edit-project" data-id="${p.id}">${icon('plus')} Ligar CEUA/CEP</button>`
-        }
-      </section>
-      <section class="card">
-        <h3 class="sub">${icon('flask')} Experimentos deste projeto</h3>
-        ${
-          exps.length
-            ? `<ul class="rows">${exps.map((e) => `<li class="row"><div class="row-main"><strong>${esc(e.title)}</strong></div></li>`).join('')}</ul>`
-            : '<p class="muted small">Ao editar um experimento em Planejamento, escolha este projeto para ele aparecer aqui.</p>'
-        }
-      </section>
-      <section class="card shortcuts">
-        <h3 class="sub">Planejar a execução</h3>
-        <a class="tile" href="#/projeto?id=${p.id}&aba=grupos"><span class="tile-ico">${icon('users')}</span><span class="tile-main"><span>Grupos e animais</span><small>${gt.groups} grupos · ${gt.total} animais${gt.boxes ? ` · ${gt.boxes} caixas` : ''}</small></span>${icon('arrow', 'tile-arrow')}</a>
-        <a class="tile" href="#/projeto?id=${p.id}&aba=agenda"><span class="tile-ico">${icon('calendar')}</span><span class="tile-main"><span>Agenda do protocolo</span><small>${(p.protocol?.steps || []).length} etapas · ${(p.cohorts || []).length} lote(s)</small></span>${icon('arrow', 'tile-arrow')}</a>
-        <a class="tile" href="#/projeto?id=${p.id}&aba=reagentes"><span class="tile-ico">${icon('flask')}</span><span class="tile-main"><span>Reagentes e doses</span><small>${(p.reagents || []).length} reagentes · ${(p.doses || []).length} doses</small></span>${icon('arrow', 'tile-arrow')}</a>
-      </section>
-    </div>
-  </div>`;
+    <nav class="tabs" aria-label="Protocolo">
+      ${PTABS.map(([k, l, ic]) => `<a href="${protoUrl(p.id, k)}" class="tab ${k === parte ? 'active' : ''}">${icon(ic)} ${l}</a>`).join('')}
+    </nav>
+    ${{ grupos, agenda, reagentes }[parte](p, params)}`;
 }
 
 function grupos(p) {
@@ -314,7 +498,7 @@ function agenda(p, params) {
   const all = P.occurrences(p);
   const t = todayISO();
   const view = params.get('ver') || 'proximas';
-  const base = `#/projeto?id=${p.id}&aba=agenda`;
+  const base = protoUrl(p.id, 'agenda');
   const late = all.filter((o) => !o.done && o.date < t);
   const shown =
     view === 'tudo' ? all : view === 'atrasadas' ? late : all.filter((o) => o.date >= t && (daysUntil(o.date) ?? 99) <= 14);
@@ -458,14 +642,17 @@ export const actions = {
       fields: [
         { name: 'title', label: 'Título do projeto', type: 'textarea', rows: 2, required: true },
         { name: 'type', label: 'Tipo', type: 'select', options: PROJECT_TYPES },
+        { name: 'start', label: 'Início', type: 'date', required: true, default: todayISO() },
+        { name: 'end', label: 'Fim previsto', type: 'date' },
         {
           name: 'template',
           label: 'Começar com',
           type: 'select',
           full: true,
           options: [
-            ['', 'Projeto em branco'],
-            ['stress', 'Modelo: estresse na adolescência + enriquecimento ambiental + doxiciclina (8 grupos)'],
+            ['', 'Em branco'],
+            ['ic', 'Cronograma típico de IC (12 meses)'],
+            ['stress', 'Cronograma de IC + protocolo de estresse na adolescência (EA + doxiciclina)'],
           ],
         },
         { name: 'advisor', label: 'Orientador(a)' },
@@ -476,12 +663,22 @@ export const actions = {
         const tpl = v.template === 'stress' ? P.templateAdolescentStress() : null;
         const design = tpl ? { ...tpl.design } : { factors: [], groups: [], perBox: 4 };
         design.groups = P.rebuildGroups(design);
+        const startYm = (v.start || todayISO()).slice(0, 7);
+        let end = v.end;
+        if (!end && v.template) {
+          const d = new Date(Number(startYm.slice(0, 4)), Number(startYm.slice(5, 7)) + 11, 0);
+          end = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+        }
         const proj = store.add('projects', {
           title: v.title,
           type: v.type,
           advisor: v.advisor,
           program: v.program,
-          status: 'planejamento',
+          start: v.start,
+          end,
+          status: 'andamento',
+          activities: v.template ? icActivities(startYm) : [],
+          objectives: [],
           design,
           protocol: { steps: tpl ? tpl.steps : [] },
           cohorts: [],
@@ -489,9 +686,40 @@ export const actions = {
           doses: tpl ? tpl.doses : [],
           done: {},
         });
-        location.hash = `#/projeto?id=${proj.id}&aba=${tpl ? 'agenda' : 'resumo'}`;
-        toast(tpl ? 'Projeto criado com o modelo. Agora cadastre um lote de animais.' : 'Projeto criado');
+        location.hash = `#/projeto?id=${proj.id}`;
+        toast('Projeto criado');
       },
+    }),
+  'add-activity': (el) => activityForm(el.dataset.id),
+  'edit-activity': (el) => activityForm(el.dataset.id, el.dataset.aid),
+  'cycle-activity': (el) =>
+    update(el.dataset.id, (x) => {
+      const a = (x.activities || []).find((k) => k.id === el.dataset.aid);
+      if (a) a.status = { todo: 'doing', doing: 'done', done: 'todo' }[a.status || 'todo'];
+    }),
+  'ic-schedule': (el) =>
+    update(el.dataset.id, (x) => {
+      x.activities = icActivities((x.start || todayISO()).slice(0, 7));
+      toast('Cronograma de IC adicionado. Ajuste os meses se precisar.');
+    }),
+  'add-objective': (el) => objectiveForm(el.dataset.id),
+  'edit-objective': (el) => objectiveForm(el.dataset.id, el.dataset.oid),
+  'add-delivery': (el) =>
+    openForm({
+      title: 'Nova entrega do projeto',
+      fields: SCHEMAS.milestones.fields(),
+      values: { kind: 'relatorio', projectId: el.dataset.id },
+      onSubmit: (v) => (store.add('milestones', { ...v, projectId: v.projectId || el.dataset.id }), toast('Entrega adicionada')),
+    }),
+  'use-stress-template': (el) =>
+    update(el.dataset.id, (x) => {
+      const tpl = P.templateAdolescentStress();
+      x.design = { ...tpl.design };
+      x.design.groups = P.rebuildGroups(x.design);
+      x.protocol = { steps: tpl.steps };
+      x.reagents = [...(x.reagents || []), ...tpl.reagents];
+      x.doses = [...(x.doses || []), ...tpl.doses];
+      toast('Modelo aplicado. Agora cadastre um lote de animais.');
     }),
   'edit-project': (el) => {
     const p = store.find('projects', el.dataset.id);
@@ -500,7 +728,7 @@ export const actions = {
   'delete-project': (el) =>
     confirmDialog('Excluir este projeto, com grupos, agenda e reagentes?', () => {
       store.remove('projects', el.dataset.id);
-      location.hash = '#/projeto';
+      if (location.hash.includes(el.dataset.id)) location.hash = '#/projeto';
     }),
   'edit-factors': (el) => {
     const p = store.find('projects', el.dataset.id);
@@ -546,6 +774,57 @@ export const actions = {
       else x.done[el.dataset.occ] = new Date().toISOString();
     }),
 };
+
+function activityForm(pid, aid) {
+  const p = store.find('projects', pid);
+  const a = (p.activities || []).find((k) => k.id === aid);
+  const startYm = (p.start || todayISO()).slice(0, 7);
+  openForm({
+    title: a ? 'Editar atividade do cronograma' : 'Nova atividade do cronograma',
+    fields: [
+      { name: 'name', label: 'Atividade', required: true, full: true },
+      { name: 'start', label: 'Mês de início', type: 'month', required: true },
+      { name: 'end', label: 'Mês de término', type: 'month', required: true },
+      { name: 'status', label: 'Situação', type: 'select', options: Object.entries(ACT_STATUS) },
+      ...(a ? [{ name: 'remove', label: 'Excluir esta atividade', type: 'checkbox', full: true }] : []),
+    ],
+    values: a || { start: startYm, end: startYm, status: 'todo' },
+    onSubmit: (v) =>
+      update(pid, (x) => {
+        x.activities = x.activities || [];
+        if (v.end < v.start) [v.start, v.end] = [v.end, v.start];
+        if (a && v.remove) x.activities = x.activities.filter((k) => k.id !== aid);
+        else if (a) x.activities = x.activities.map((k) => (k.id === aid ? { ...k, name: v.name, start: v.start, end: v.end, status: v.status } : k));
+        else x.activities.push({ id: uid(), name: v.name, start: v.start, end: v.end, status: v.status });
+        x.activities.sort((m, n) => m.start.localeCompare(n.start));
+      }),
+  });
+}
+
+function objectiveForm(pid, oid) {
+  const p = store.find('projects', pid);
+  const objs = getObjectives(p);
+  const o = objs.find((k) => k.id === oid);
+  openForm({
+    title: o ? 'Editar objetivo' : 'Novo objetivo específico',
+    fields: [
+      { name: 'text', label: 'Objetivo', type: 'textarea', rows: 3, required: true },
+      { name: 'status', label: 'Situação', type: 'select', options: OBJ_STATUS },
+      { name: 'experimentId', label: 'Experimento que responde', type: 'select', options: [['', '— nenhum —'], ...store.list('experiments').map((e) => [e.id, e.title])] },
+      ...(o ? [{ name: 'remove', label: 'Excluir este objetivo', type: 'checkbox', full: true }] : []),
+    ],
+    values: o || { status: 'pendente' },
+    onSubmit: (v) =>
+      update(pid, (x) => {
+        let list = getObjectives(x).map((k) => ({ ...k, id: k.id.startsWith('o') && k.id.length < 4 ? uid() + k.id : k.id }));
+        const key = o ? getObjectives(x).findIndex((k) => k.id === oid) : -1;
+        if (o && v.remove) list = list.filter((_, i) => i !== key);
+        else if (o) list[key] = { ...list[key], text: v.text, status: v.status, experimentId: v.experimentId };
+        else list.push({ id: uid(), text: v.text, status: v.status, experimentId: v.experimentId });
+        x.objectives = list;
+      }),
+  });
+}
 
 function cohortForm(pid, cid) {
   const p = store.find('projects', pid);
@@ -603,10 +882,10 @@ function subForm(pid, key, fields, titleText, itemId) {
   });
 }
 
-// Edição direto na tabela de grupos e no "por caixa"
+// Edição direto na tabela de grupos, "por caixa", status dos objetivos e troca de projeto
 export function mount(params) {
   const root = document.querySelector('#main');
-  if (!root || !params.get('id')) return null;
+  if (!root) return null;
   const onChange = (e) => {
     const el = e.target;
     if (el.dataset.groupField) {
@@ -616,6 +895,14 @@ export function mount(params) {
       });
     }
     if (el.dataset.projField === 'perBox') update(el.dataset.id, (x) => (x.design.perBox = el.value === '' ? '' : Number(el.value)));
+    if (el.dataset.objStatus)
+      update(el.dataset.id, (x) => {
+        const list = getObjectives(x);
+        const o = list.find((k) => k.id === el.dataset.objStatus);
+        if (o) o.status = el.value;
+        x.objectives = list;
+      });
+    if (el.hasAttribute('data-proto-project')) location.hash = protoUrl(el.value, params.get('parte') || 'agenda');
   };
   root.addEventListener('change', onChange);
   return () => root.removeEventListener('change', onChange);
